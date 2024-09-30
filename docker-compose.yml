@@ -1,0 +1,12 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16.2
+    ports:
+      - "9090:5432"
+    volumes:
+      - ./database:/docker-entrypoint-initdb.d
+      - ./backup:/backup
+    env_file:
+      - .env/dev/.env.db
