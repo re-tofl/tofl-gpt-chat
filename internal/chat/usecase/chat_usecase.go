@@ -1,23 +1,12 @@
 package usecase
 
-import (
-	"fmt"
+import "tgbot/domain"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
-	"tgbot/domain"
-)
-
-type TgStore interface {
+type ChatStore interface {
+	FullTextSearch(originalMessageText string) []domain.Chunk
 }
 
-func CreateNewTgBot(tgKey string) (*domain.Telegram, error) {
-	var telegramBotStruct domain.Telegram
-	fmt.Println(tgKey)
-	bot, err := tgbotapi.NewBotAPI(tgKey)
-	if err != nil {
-		return nil, err
-	}
-	telegramBotStruct.Bot = bot
-
-	return &telegramBotStruct, nil
+func SendMessageFromUserToLLM(chatStore ChatStore, userMessage domain.Message) {
+	userMessage.MessageContext = chatStore.FullTextSearch(userMessage.OriginalMessageText)
+	//...
 }

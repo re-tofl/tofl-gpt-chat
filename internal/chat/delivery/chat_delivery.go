@@ -1,26 +1,34 @@
 package delivery
 
 import (
+	"database/sql"
+	"time"
+
 	"go.uber.org/zap"
 	"tgbot/domain"
-	tgUsecase "tgbot/internal/telegramAPI/usecase"
+	chatRepo "tgbot/internal/chat/repository"
+	chatUsecase "tgbot/internal/chat/usecase"
 )
 
 type ChatHandler struct {
 	Logger *zap.SugaredLogger
 	TgBot  *domain.Telegram
+	Chat   *chatRepo.ChatStorage
 }
 
-func NewChatHandler(logger *zap.SugaredLogger) *ChatHandler {
+func NewChatHandler(logger *zap.SugaredLogger, db *sql.DB) *ChatHandler {
 	return &ChatHandler{
 		Logger: logger,
+		Chat:   chatRepo.NewChatStorage(logger, db),
 	}
 }
 
-func (chat *ChatHandler) SendMessageTo(tgKey string) {
-	bot, err := tgUsecase.CreateNewTgBot(tgKey)
-	if err != nil {
-		chat.Logger.Error(err)
+func (chat *ChatHandler) SendMessageToLLM(chatID int64, text string) {
+	message := domain.Message{
+		SenderChatID:        chatID,
+		OriginalMessageText: text,
+		CreatedAt:           time.Now(),
+		MessageContext:      make([]domain.Chunk, 0),
 	}
-	chat.TgBot = bot
+	chatUsecase.SendMessageFromUserToLLM(chat.Chat, message)
 }

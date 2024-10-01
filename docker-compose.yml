@@ -12,4 +12,27 @@ services:
       - .env/dev/.env.db
     environment:
       POSTGRES_DB: tofl_chat
-
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9091:9090"
+    volumes:
+      - "./metrics/prometheus:/etc/prometheus"
+  node-exporter:
+    image: prom/node-exporter:latest
+    ports:
+      - "9100:9100"
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      #- "./metrics/grafana/grafana.ini:/etc/grafana/grafana.ini"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=Artem557 # Задайте свой пароль
+      - GF_SECURITY_ADMIN_USER=admin     # Задайте свое имя пользователя
+    depends_on:
+      - prometheus
+volumes:
+  grafana_data:

@@ -1,9 +1,11 @@
 package main
 
 import (
+	"net/http"
 	"os"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 	"tgbot/database"
@@ -13,6 +15,7 @@ import (
 )
 
 func main() {
+
 	logger := CreateLogger()
 	config := loadConfig(logger)
 	db := database.ConnectToPostgreSQLDataBase(*logger)
@@ -20,8 +23,15 @@ func main() {
 	tgHandler := tgDelivery.NewTelegramHandler(logger)
 	userHandler := userDelivery.NewUserHandler(logger, db)
 
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		logger.Info("Запуск сервера на :8080")
+		logger.Error(http.ListenAndServe(":8080", nil))
+	}()
+
 	tgHandler.CreateTelegramBot(config.Bot.TgKey)
 	HandleTelegramMessages(tgHandler, userHandler, logger)
+
 }
 
 func loadConfig(logger *zap.SugaredLogger) domain.Config {
