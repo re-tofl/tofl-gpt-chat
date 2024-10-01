@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"log"
 	"os"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
@@ -16,15 +14,13 @@ import (
 
 func main() {
 	logger := CreateLogger()
+	config := loadConfig(logger)
 	db := database.ConnectToPostgreSQLDataBase(*logger)
 
 	tgHandler := tgDelivery.NewTelegramHandler(logger)
 	userHandler := userDelivery.NewUserHandler(logger, db)
 
-	config := loadConfig(logger)
-	fmt.Println("tgkey: ", config.Bot.TgKey)
 	tgHandler.CreateTelegramBot(config.Bot.TgKey)
-
 	HandleTelegramMessages(tgHandler, userHandler, logger)
 }
 
@@ -53,12 +49,11 @@ func CreateLogger() *zap.SugaredLogger {
 }
 
 func HandleTelegramMessages(telegramHandler *tgDelivery.TelegramHandler, userHandler *userDelivery.UserHandler, logger *zap.SugaredLogger) {
-
 	bot := telegramHandler.TgBot.Bot
 
 	updates, err := bot.GetUpdatesChan(telegramHandler.TgBot.Updates)
 	if err != nil {
-		log.Fatal(err)
+		logger.Error("Err by get updates chan: ", err)
 	}
 
 	for update := range updates {
@@ -71,29 +66,47 @@ func HandleTelegramMessages(telegramHandler *tgDelivery.TelegramHandler, userHan
 			user = userHandler.RegisterUser(*update.Message)
 		}
 
-		log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
+		logger.Info("[%s] %s", update.Message.From.UserName, update.Message.Text)
 		user.State = userHandler.GetUserState(user.ChatID)
 		switch user.State {
 		case "start":
-			handleStart(bot, update.Message, userHandler, logger)
-			/*
-				case "menu":
-					handleMenu(bot, update.Message, &handlers)
-				default:
-					handleUnknown(bot, update.Message, &handlers)*/
+			handleStart(update.Message, userHandler)
+		case "menu":
+			handleMenu(bot, update.Message, userHandler)
+		default:
+			handleUnknown(bot, update.Message)
 		}
 	}
 }
 
-func handleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message, userHandler *userDelivery.UserHandler, logger *zap.SugaredLogger) {
+func handleStart(message *tgbotapi.Message, userHandler *userDelivery.UserHandler) {
 	msg := tgbotapi.NewMessage(message.Chat.ID, "")
-	msg.Text = "Добро пожаловать! Это бот-помощник по ТФЯ."
+	msg.Text = ""
 	userHandler.SetUserState(message.Chat.ID, "menu")
-	PrintMenu(bot, message, userHandler)
 }
 
-func PrintMenu(bot *tgbotapi.BotAPI, message *tgbotapi.Message, userHandler *userDelivery.UserHandler) {
+func handleMenu(bot *tgbotapi.BotAPI, message *tgbotapi.Message, userHandler *userDelivery.UserHandler) {
 	msg := tgbotapi.NewMessage(message.Chat.ID, "")
-	msg.Text = "Вы находитесь в меню. Тут будет несколько кнопок"
+	switch message.Text {
+	case "/chat":
+		msg.Text = "Тут будут чаты"
+		bot.Send(msg)
+	case "/manual":
+		msg.Text = "тут будет readme"
+		bot.Send(msg)
+	case "/developers":
+		msg.Text = "тут будут контакты разработчиков"
+		bot.Send(msg)
+	case "/profile":
+		msg.Text = "тут будет профиль"
+		bot.Send(msg)
+	default:
+		msg.Text = "Я не знаю, что сказать на это"
+		bot.Send(msg)
+	}
+}
+
+func handleUnknown(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
+	msg := tgbotapi.NewMessage(message.Chat.ID, "Я не знаю, что сказать на это")
 	bot.Send(msg)
 }
