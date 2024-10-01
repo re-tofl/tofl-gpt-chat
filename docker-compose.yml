@@ -10,3 +10,6 @@ services:
       - ./backup:/backup
     env_file:
       - .env/dev/.env.db
+    environment:
+      POSTGRES_DB: tofl_chat
+

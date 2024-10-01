@@ -1,5 +1,7 @@
 package domain
 
 type Config struct {
-	TgKey string
+	Bot struct {
+		TgKey string `yaml:"tgKey"`
+	}
 }

@@ -7,20 +7,20 @@ import (
 )
 
 type TelegramHandler struct {
-	logger *zap.SugaredLogger
-	tgBot  *domain.Telegram
+	Logger *zap.SugaredLogger
+	TgBot  *domain.Telegram
 }
 
 func NewTelegramHandler(logger *zap.SugaredLogger) *TelegramHandler {
 	return &TelegramHandler{
-		logger: logger,
+		Logger: logger,
 	}
 }
 
 func (tg *TelegramHandler) CreateTelegramBot(tgKey string) {
 	bot, err := tgUsecase.CreateNewTgBot(tgKey)
 	if err != nil {
-		tg.logger.Error(err)
+		tg.Logger.Error(err)
 	}
-	tg.tgBot = bot
+	tg.TgBot = bot
 }

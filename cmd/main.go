@@ -1,21 +1,31 @@
 package main
 
 import (
-	"database/sql"
+	"fmt"
 	"log"
 	"os"
 
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
+	"tgbot/database"
 	"tgbot/domain"
 	tgDelivery "tgbot/internal/telegramAPI/delivery"
+	userDelivery "tgbot/internal/user/delivery"
 )
 
 func main() {
 	logger := CreateLogger()
+	db := database.ConnectToPostgreSQLDataBase(*logger)
+
 	tgHandler := tgDelivery.NewTelegramHandler(logger)
+	userHandler := userDelivery.NewUserHandler(logger, db)
+
 	config := loadConfig(logger)
-	tgHandler.CreateTelegramBot(config.TgKey)
+	fmt.Println("tgkey: ", config.Bot.TgKey)
+	tgHandler.CreateTelegramBot(config.Bot.TgKey)
+
+	HandleTelegramMessages(tgHandler, userHandler, logger)
 }
 
 func loadConfig(logger *zap.SugaredLogger) domain.Config {
@@ -42,52 +52,48 @@ func CreateLogger() *zap.SugaredLogger {
 	return sugar
 }
 
-func HandleTelegramMessages(telegramHandler *tgDelivery.TelegramHandler, logger *zap.SugaredLogger, postgresDB *sql.DB) {
+func HandleTelegramMessages(telegramHandler *tgDelivery.TelegramHandler, userHandler *userDelivery.UserHandler, logger *zap.SugaredLogger) {
 
-	bot := TelegramHandler.TGBot.Bot
+	bot := telegramHandler.TgBot.Bot
 
-	updates, err := bot.GetUpdatesChan(telegramHandler.TGBot.Updates)
+	updates, err := bot.GetUpdatesChan(telegramHandler.TgBot.Updates)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	user := domain.User{}
 	for update := range updates {
 		if update.Message == nil {
 			continue
 		}
-		if user.ChatID == 0 {
-			user.ChatID = update.Message.Chat.ID
-			accExists := handlers.UserHandler.CheckAccountExists(user.ChatID)
-			if !accExists {
-				user = *handlers.UserHandler.Register(update.Message)
-			} else {
-				user.State = handlers.UserHandler.SetUserState(user.ChatID, "start")
-			}
+
+		userExists, user := userHandler.CheckAccExists(update.Message.Chat.ID)
+		if userExists == false {
+			user = userHandler.RegisterUser(*update.Message)
 		}
 
 		log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
-		user.State = handlers.UserHandler.GetUserState(user.ChatID)
+		user.State = userHandler.GetUserState(user.ChatID)
 		switch user.State {
 		case "start":
-			handleStart(bot, update.Message, &handlers, logger)
-		case "menu":
-			handleMenu(bot, update.Message, &handlers)
-		case "choosingDateOfPublication":
-			handleChoosingDate(bot, update.Message, &handlers)
-		case "getPortfolioOtherUsers":
-			err = handleGetPortfolioOtherUsers(bot, update.Message, &handlers)
-			if err != nil {
-				handlePortfolioParseErr(bot, update.Message, &handlers)
-			}
-		case "waitForNewSessionID":
-			handleUpdateSessionID(bot, update.Message, logger, &handlers, mongoDB, postgresDB)
-		case "updateSessionID":
-			handleUpdateSessionID(bot, update.Message, logger, &handlers, mongoDB, postgresDB)
-
-		default:
-			handleUnknown(bot, update.Message, &handlers)
+			handleStart(bot, update.Message, userHandler, logger)
+			/*
+				case "menu":
+					handleMenu(bot, update.Message, &handlers)
+				default:
+					handleUnknown(bot, update.Message, &handlers)*/
 		}
-
 	}
+}
+
+func handleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message, userHandler *userDelivery.UserHandler, logger *zap.SugaredLogger) {
+	msg := tgbotapi.NewMessage(message.Chat.ID, "")
+	msg.Text = "Добро пожаловать! Это бот-помощник по ТФЯ."
+	userHandler.SetUserState(message.Chat.ID, "menu")
+	PrintMenu(bot, message, userHandler)
+}
+
+func PrintMenu(bot *tgbotapi.BotAPI, message *tgbotapi.Message, userHandler *userDelivery.UserHandler) {
+	msg := tgbotapi.NewMessage(message.Chat.ID, "")
+	msg.Text = "Вы находитесь в меню. Тут будет несколько кнопок"
+	bot.Send(msg)
 }
