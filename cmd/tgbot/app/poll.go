@@ -1,8 +1,9 @@
 package app
 
 import (
-	"github.com/re-tofl/tofl-gpt-chat/internal/app"
 	"github.com/spf13/cobra"
+
+	"github.com/re-tofl/tofl-gpt-chat/internal/app"
 )
 
 func init() {

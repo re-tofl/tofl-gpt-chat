@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"github.com/re-tofl/tofl-gpt-chat/internal/tgchat/depgraph"
 	"io"
 	"os/signal"
 	"syscall"
@@ -10,6 +9,8 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/re-tofl/tofl-gpt-chat/internal/depgraph"
 )
 
 type Entrypoint interface {

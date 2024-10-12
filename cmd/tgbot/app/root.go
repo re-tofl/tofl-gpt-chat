@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+
 	"github.com/re-tofl/tofl-gpt-chat/cmd"
 )
 

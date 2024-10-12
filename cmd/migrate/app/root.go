@@ -3,12 +3,13 @@ package app
 import (
 	"context"
 	"database/sql"
-	"github.com/pressly/goose/v3"
-	"github.com/re-tofl/tofl-gpt-chat/cmd"
-	"github.com/re-tofl/tofl-gpt-chat/db/migrations"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/pressly/goose/v3"
+
+	"github.com/re-tofl/tofl-gpt-chat/cmd"
+	"github.com/re-tofl/tofl-gpt-chat/db/migrations"
 )
 
 var rootCmd = cmd.Init("migrate")
