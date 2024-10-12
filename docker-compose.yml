@@ -1,27 +1,29 @@
-version: "3.8"
-
 services:
   postgres:
-    image: postgres:16.2
+    image: postgres:latest
+    restart: unless-stopped
     ports:
-      - "9090:5432"
+      - "8081:5432"
     volumes:
-      - ./database:/docker-entrypoint-initdb.d
-      - ./backup:/backup
+      - db-data:/var/lib/postgresql/data
     env_file:
-      - .env/dev/.env.db
-    environment:
-      POSTGRES_DB: tofl_chat
+      - .env
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
   prometheus:
-    image: prom/prometheus
+    image: prom/prometheus:latest
     ports:
-      - "9091:9090"
+      - "8082:9090"
     volumes:
       - "./metrics/prometheus:/etc/prometheus"
   node-exporter:
     image: prom/node-exporter:latest
     ports:
-      - "9100:9100"
+      - "8083:9100"
   grafana:
     image: grafana/grafana:latest
     ports:
@@ -29,10 +31,10 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       #- "./metrics/grafana/grafana.ini:/etc/grafana/grafana.ini"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=Artem557 # Задайте свой пароль
-      - GF_SECURITY_ADMIN_USER=admin     # Задайте свое имя пользователя
+    env_file:
+      - .env
     depends_on:
       - prometheus
+
 volumes:
   grafana_data:
