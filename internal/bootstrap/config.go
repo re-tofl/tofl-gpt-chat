@@ -7,7 +7,7 @@ import (
 type Config struct {
 	ServerPort  string `mapstructure:"SERVER_PORT"`
 	DatabaseURL string `mapstructure:"DATABASE_URL"`
-	TGKey       string `mapstructure:"TG_KEY"`
+	TGBotToken  string `mapstructure:"TG_BOT_TOKEN"`
 }
 
 func Setup(cfgPath string) (*Config, error) {
