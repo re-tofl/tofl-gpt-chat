@@ -12,8 +12,8 @@ import (
 const (
 	cmdConfigName      = "config"
 	cmdConfigShorthand = "c"
-	cmdConfigValue     = "dev.yaml"
-	cmdConfigUsage     = ".yaml file path"
+	cmdConfigValue     = ".env"
+	cmdConfigUsage     = ".env file path"
 )
 
 type Options struct {
