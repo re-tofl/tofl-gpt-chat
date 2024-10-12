@@ -1,7 +1,7 @@
 package app
 
 import (
-	"github.com/re-tofl/tofl-gpt-chat/internal/tgchat/app"
+	"github.com/re-tofl/tofl-gpt-chat/internal/app"
 	"github.com/spf13/cobra"
 )
 

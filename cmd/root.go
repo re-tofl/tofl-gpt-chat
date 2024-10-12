@@ -3,7 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/re-tofl/tofl-gpt-chat/internal/tgchat/bootstrap"
+	"github.com/re-tofl/tofl-gpt-chat/internal/bootstrap"
 	"os"
 
 	"github.com/spf13/cobra"

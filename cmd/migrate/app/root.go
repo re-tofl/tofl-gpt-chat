@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"database/sql"
+	"github.com/pressly/goose/v3"
 	"github.com/re-tofl/tofl-gpt-chat/cmd"
 	"github.com/re-tofl/tofl-gpt-chat/db/migrations"
 
@@ -17,7 +18,7 @@ func MustExecute(ctx context.Context) {
 }
 
 func setupDB(ctx context.Context) (*sql.DB, error) {
-	pool, err := pgxpool.New(ctx, rootCmd.Config.Database.URL)
+	pool, err := pgxpool.New(ctx, rootCmd.Config.DatabaseURL)
 	if err != nil {
 		return nil, err
 	}
