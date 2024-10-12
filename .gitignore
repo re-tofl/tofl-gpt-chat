@@ -17,3 +17,6 @@ go.work
 
 ### JetBrains IDE
 .idea/
+
+### Config
+*.env
