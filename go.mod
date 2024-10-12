@@ -1,4 +1,4 @@
-module github.com/re-tofl/tofl-chat
+module github.com/re-tofl/tofl-gpt-chat
 
 go 1.22.7
 
