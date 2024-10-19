@@ -11,6 +11,8 @@ import (
 	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 )
 
+// TODO: отрефакторить код, ввести контексты, вынести обработку ошибок в юзкейсы
+
 type UserStorage struct {
 	logger *zap.SugaredLogger
 	db     *sql.DB
