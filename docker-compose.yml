@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:latest
+    restart: unless-stopped
+    ports:
+      - "8081:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    env_file:
+      - .env
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "8082:9090"
+    volumes:
+      - "./metrics/prometheus:/etc/prometheus"
+  node-exporter:
+    image: prom/node-exporter:latest
+    ports:
+      - "8083:9100"
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      #- "./metrics/grafana/grafana.ini:/etc/grafana/grafana.ini"
+    env_file:
+      - .env
+    depends_on:
+      - prometheus
+
+volumes:
+  grafana_data:
