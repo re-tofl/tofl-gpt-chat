@@ -1,19 +1,19 @@
-NAME := server
-MAIN := cmd/server/main.go
+NAME := tgbot
+MAIN := cmd/tgbot/main.go
 
 NAME_MIGRATE := migrate
 MAIN_MIGRATE := cmd/migrate/main.go
 
 PKG := `go list -mod=mod -f {{.Dir}} ./...`
 
-RUNFLAGS := --config dev.yaml
+RUNFLAGS := --config .env
 
 all: build
 init: mod-tidy install-swag install-gci install-lint
 
 run: lint build
 	@echo "Starting app..."
-	./bin/$(NAME) $(RUNFLAGS) api
+	./bin/$(NAME) $(RUNFLAGS) poll
 
 create-migration: build-migrate
 	./bin/${NAME_MIGRATE} $(RUNFLAGS) create $(name)

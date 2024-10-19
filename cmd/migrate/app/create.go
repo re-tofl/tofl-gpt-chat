@@ -10,7 +10,7 @@ var createMigrationCmd = &cobra.Command{
 	Short: "create new migration file",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return goose.Create(nil, "migrations", args[0], "sql")
+		return goose.Create(nil, "db/migrations", args[0], "sql")
 	},
 }
 
