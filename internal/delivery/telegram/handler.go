@@ -59,6 +59,7 @@ func (h *Handler) Send(c tgbotapi.Chattable) *tgbotapi.Message {
 		h.log.Errorw("bot.Send", zap.Error(err))
 		return nil
 	}
+
 	return &send
 }
 
@@ -78,6 +79,7 @@ func (h *Handler) processUpdate(ctx context.Context, update *tgbotapi.Update) {
 
 func (h *Handler) processCommand(ctx context.Context, message *tgbotapi.Message) {
 	reply := tgbotapi.NewMessage(message.Chat.ID, "")
+
 	switch message.Command() {
 	case "theory":
 		reply.Text = "Ответ на теорию"
