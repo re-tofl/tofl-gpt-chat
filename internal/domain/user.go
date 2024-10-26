@@ -4,9 +4,9 @@ import "time"
 
 const (
 	StateStart = iota
+	StateWaiting
 	StateProblem
 	StateTheory
-	StateWaiting
 )
 
 type User struct {
