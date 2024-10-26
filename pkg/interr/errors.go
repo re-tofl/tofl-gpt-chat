@@ -6,6 +6,7 @@ import (
 )
 
 var (
+	ErrInternalError = errors.New("internal error")
 	ErrNotFound      = errors.New("not found")
 	ErrAlreadyExists = errors.New("already exists")
 )
@@ -16,35 +17,39 @@ type InternalErr interface {
 }
 
 type InternalError struct {
-	error  error
-	causes interface{}
+	error   error
+	wrapped error
+	message string
 }
 
 func (e InternalError) Error() string {
-	return fmt.Sprintf("%s: %s", e.causes, e.error)
+	return fmt.Sprintf("%s %s: %s", e.message, e.wrapped, e.error)
 }
 
 func (e InternalError) Unwrap() error {
-	return e.error
+	return fmt.Errorf("%w: %w", e.error, e.wrapped)
 }
 
-func NewInternalError(err error, causes interface{}) InternalErr {
+func NewInternalError(wrapped error, message string) InternalErr {
 	return InternalError{
-		error:  err,
-		causes: causes,
+		error:   ErrInternalError,
+		wrapped: wrapped,
+		message: message,
 	}
 }
 
-func NewNotFoundError(causes interface{}) InternalErr {
+func NewNotFoundError(wrapped error, message string) InternalErr {
 	return InternalError{
-		error:  ErrNotFound,
-		causes: causes,
+		error:   ErrNotFound,
+		wrapped: wrapped,
+		message: message,
 	}
 }
 
-func NewAlreadyExistsError(causes interface{}) InternalErr {
+func NewAlreadyExistsError(wrapped error, message string) InternalErr {
 	return InternalError{
-		error:  ErrAlreadyExists,
-		causes: causes,
+		error:   ErrAlreadyExists,
+		wrapped: wrapped,
+		message: message,
 	}
 }
