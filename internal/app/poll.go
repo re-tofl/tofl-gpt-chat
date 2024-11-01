@@ -22,6 +22,7 @@ type PollEntrypoint struct {
 	Config *bootstrap.Config
 	server *http.Server
 	tgbot  *telegram.Handler
+	//user *user.Ne
 }
 
 func (e *PollEntrypoint) Init(ctx context.Context) error {
