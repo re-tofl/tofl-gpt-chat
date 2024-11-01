@@ -8,11 +8,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
-
-	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 )
 
 type SearchStorage struct {
@@ -53,7 +52,7 @@ func (s *SearchStorage) loadJSONArrayFromFile(path string) []interface{} {
 	defer file.Close()
 	var jsonArray []interface{}
 	decoder := json.NewDecoder(file)
-	if err = decoder.Decode(&jsonArray); err != nil {
+	if err := decoder.Decode(&jsonArray); err != nil {
 		s.logger.Error(err)
 		return nil
 	}
@@ -88,7 +87,6 @@ func (s *SearchStorage) FindRelevantContext(userMessage string) []bson.M {
 
 	cursor, err := collection.Find(context.TODO(), filter)
 	if err != nil {
-		s.logger.Error(err)
 		return nil
 	}
 	defer cursor.Close(context.TODO())
