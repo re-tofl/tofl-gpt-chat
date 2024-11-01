@@ -5,9 +5,12 @@ import (
 )
 
 type Config struct {
-	ServerPort  string `mapstructure:"SERVER_PORT"`
-	DatabaseURL string `mapstructure:"DATABASE_URL"`
-	TGBotToken  string `mapstructure:"TG_BOT_TOKEN"`
+	ServerPort              string `mapstructure:"SERVER_PORT"`
+	DatabaseURL             string `mapstructure:"DATABASE_URL"`
+	TGBotToken              string `mapstructure:"TG_BOT_TOKEN"`
+	YandexKey               string `mapstructure:"YANDEX_KEY"`
+	YandexTranslateUrl      string `mapstructure:"YANDEX_TRANSLATE_URL"`
+	YandexTranslateFolderId string `mapstructure:"YANDEX_TRANSLATE_FOLDER_ID"`
 }
 
 func Setup(cfgPath string) (*Config, error) {
