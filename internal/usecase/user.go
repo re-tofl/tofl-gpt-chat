@@ -25,9 +25,9 @@ type UserHandler struct {
 	metrics *PrometheusMetrics
 }
 
-func NewUserHandler(Logger *zap.SugaredLogger, repo UserRepository) *UserHandler {
+func NewUserHandler(logger *zap.SugaredLogger, repo UserRepository) *UserHandler {
 	return &UserHandler{
-		log:     Logger,
+		log:     logger,
 		repo:    repo,
 		metrics: NewPrometheusMetrics(),
 	}
