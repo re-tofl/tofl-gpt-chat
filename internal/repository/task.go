@@ -3,9 +3,10 @@ package repository
 import (
 	"database/sql"
 
-	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
+
+	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 )
 
 type TaskStorage struct {

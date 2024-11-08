@@ -7,10 +7,11 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/re-tofl/tofl-gpt-chat/internal/bootstrap"
-	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
+
+	"github.com/re-tofl/tofl-gpt-chat/internal/bootstrap"
+	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 )
 
 type TranslatorStorage struct {
@@ -55,7 +56,6 @@ func (t *TranslatorStorage) Translate(message *domain.Message) *domain.Message {
 	translateResponse := t.SendToYandex(translateRequest)
 	message.TranslatedMessageText = translateResponse.Translations[0].Text // TODO fix this hardcode
 	return message
-
 }
 
 func (t *TranslatorStorage) SendToYandex(request TranslateRequest) (response TranslateResponse) {
