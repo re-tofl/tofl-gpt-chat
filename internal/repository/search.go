@@ -8,10 +8,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
+
+	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 )
 
 type SearchStorage struct {
