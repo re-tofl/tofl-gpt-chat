@@ -6,20 +6,22 @@ import (
 	"net/http"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	task2 "github.com/re-tofl/tofl-gpt-chat/internal/delivery/openai"
+	"github.com/re-tofl/tofl-gpt-chat/internal/delivery/task"
+	"github.com/re-tofl/tofl-gpt-chat/internal/usecase"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/re-tofl/tofl-gpt-chat/internal/bootstrap"
 	"github.com/re-tofl/tofl-gpt-chat/internal/delivery/telegram"
 	"github.com/re-tofl/tofl-gpt-chat/internal/depgraph"
-	"github.com/re-tofl/tofl-gpt-chat/internal/repository"
-	"github.com/re-tofl/tofl-gpt-chat/internal/usecase"
+	userRep "github.com/re-tofl/tofl-gpt-chat/internal/repository"
 )
 
 type PollEntrypoint struct {
 	Config *bootstrap.Config
 	server *http.Server
 	tgbot  *telegram.Handler
-	//user *user.Ne
+	task   *task.THandler
 }
 
 func (e *PollEntrypoint) Init(ctx context.Context) error {
@@ -38,14 +40,15 @@ func (e *PollEntrypoint) Init(ctx context.Context) error {
 		Addr:    "127.0.0.1:" + e.Config.ServerPort,
 	}
 
-	openAiRepo := repository.NewOpenaiStorage(logger, e.Config)
-	speechRepo := repository.NewSpeechStorage(logger, e.Config)
+	taskRepo := userRep.NewTaskStorage(nil, nil, logger, e.Config)
+	openAiRepo := userRep.NewOpenaiStorage(logger, e.Config)
 
-	speechUC := usecase.NewSpeechUsecase(speechRepo)
-	openAiUC := usecase.NewOpenAiUseCase(openAiRepo)
-	taskUC := usecase.NewTaskUsecase()
+	openHandler := task2.NewOpenHandler(e.Config, logger)
+	e.task = task.NewTaskHandler(e.Config, logger, taskRepo, openAiRepo)
 
-	e.tgbot = telegram.NewHandler(e.Config, logger, openAiUC, speechUC, taskUC)
+	usecase.NewUserHandler(logger, userRep.NewUserStorage(logger, nil))
+
+	e.tgbot = telegram.NewHandler(e.Config, logger, e.task, openHandler)
 
 	return nil
 }
