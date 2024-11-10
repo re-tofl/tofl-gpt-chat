@@ -3,8 +3,9 @@ package usecase
 import (
 	"context"
 
-	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 	"go.uber.org/zap"
+
+	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 )
 
 type TaskStore interface {
