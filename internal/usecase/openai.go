@@ -10,7 +10,6 @@ import (
 )
 
 type OpenAiStore interface {
-	SendToOpenAi(message *tgbotapi.Message, files []domain.File) domain.OpenAiResponse
 	SendPDF(message *tgbotapi.Message, files []domain.File) string
 }
 
