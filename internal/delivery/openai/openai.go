@@ -4,11 +4,11 @@ import (
 	"context"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
-	"go.uber.org/zap"
-
 	"github.com/re-tofl/tofl-gpt-chat/internal/bootstrap"
+	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 	"github.com/re-tofl/tofl-gpt-chat/internal/repository"
 	"github.com/re-tofl/tofl-gpt-chat/internal/usecase"
+	"go.uber.org/zap"
 )
 
 type OpenHandler struct {
@@ -25,7 +25,6 @@ func NewOpenHandler(cfg *bootstrap.Config, log *zap.SugaredLogger) *OpenHandler 
 	}
 }
 
-func (openHandler *OpenHandler) SaveMediaAndSendToAi(ctx context.Context, message *tgbotapi.Message, bot *tgbotapi.BotAPI) string {
-	gptResponse := usecase.SaveMedia(ctx, openHandler.openAi, message, bot)
-	return gptResponse
+func (openHandler *OpenHandler) SendToOpenAi(ctx context.Context, message *tgbotapi.Message, files []domain.File) {
+	usecase.ResolveProblemOnImage(ctx, openHandler.openAi, openHandler.log, message, files)
 }
