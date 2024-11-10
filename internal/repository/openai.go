@@ -2,6 +2,7 @@ package repository
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,13 +10,15 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
-	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 	"go.uber.org/zap"
 
 	"github.com/re-tofl/tofl-gpt-chat/internal/bootstrap"
+	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 )
 
 type OpenaiStorage struct {
@@ -31,6 +34,10 @@ func NewOpenaiStorage(logger *zap.SugaredLogger, cfg *bootstrap.Config) *OpenaiS
 		cfg:     cfg,
 		fileIds: make([]string, 0),
 	}
+}
+
+type OpenAiFileResponse struct {
+	Response string `json:"response"`
 }
 
 func (open *OpenaiStorage) FormAndSendImagesRequest(files []domain.File) {
@@ -493,4 +500,88 @@ func (open *OpenaiStorage) GetRunStatus(threadID string, runID string) (string, 
 	}
 
 	return responseData.Status, nil
+}
+
+type OpenAiImageRequest struct {
+}
+
+func (open *OpenaiStorage) ProcessFilesAndSendRequest(message *tgbotapi.Message, files []domain.File) OpenAiFileResponse {
+	fileResp := OpenAiFileResponse{}
+	for _, file := range files {
+		cmd := exec.Command("pdftoppm", file.Path, "output", "-png")
+		err := cmd.Run()
+		if err != nil {
+			fmt.Println("Ошибка при конвертации PDF в изображения:", err)
+			continue // Продолжаем обработку других файлов
+		}
+
+		pngFiles, err := filepath.Glob("output-*.png")
+		if err != nil {
+			open.logger.Error(err)
+		}
+
+		var base64Images []string
+
+		jsonReq := domain.OpenAiImageRequest{
+			Base64: make([]domain.Bases, 0),
+			Prompt: message.Text,
+		}
+
+		for _, pngFile := range pngFiles {
+			imageData, err := ioutil.ReadFile(pngFile)
+			if err != nil {
+				fmt.Printf("Ошибка при чтении файла %s: %v\n", pngFile, err)
+				continue
+			}
+
+			encoded := base64.StdEncoding.EncodeToString(imageData)
+			jsonReq.Base64 = append(jsonReq.Base64, domain.Bases{Base64: encoded})
+
+			base64Images = append(base64Images, encoded)
+		}
+		byteReq, err := json.Marshal(jsonReq)
+		if err != nil {
+			open.logger.Error(err)
+		}
+
+		req, err := http.NewRequest("POST", "http://localhost:8085/image", bytes.NewBuffer(byteReq))
+		req.Header.Add("Content-Type", "application/json")
+		if err != nil {
+			open.logger.Error("Ошибка при создании запроса:", err)
+			break
+		}
+		client := &http.Client{}
+
+		resp, err := client.Do(req)
+		if err != nil {
+			fmt.Println("Ошибка при отправке запроса:", err)
+			break
+		}
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			fmt.Println("Ошибка при чтении ответа:", err)
+			break
+		}
+
+		if resp.StatusCode == http.StatusOK {
+			err = json.Unmarshal(body, &fileResp)
+			if err != nil {
+				open.logger.Error(err)
+			}
+			fmt.Println("Ответ:", string(body), fileResp)
+		} else {
+			open.logger.Error(resp.StatusCode, string(body))
+		}
+	}
+	return fileResp
+}
+
+func (open *OpenaiStorage) SendPDF(message *tgbotapi.Message, files []domain.File) string {
+	chatGptResponse := open.ProcessFilesAndSendRequest(message, files)
+	if chatGptResponse.Response != "" {
+		return chatGptResponse.Response
+	}
+	return "chatGpt returns err!"
 }
