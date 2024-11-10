@@ -321,7 +321,7 @@ func (open *OpenaiStorage) CreateThread(message *tgbotapi.Message, fileIDs []str
 	}
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("OpenAI-Beta", "assistants=v2")
-	req.Header.Add("Authorization", "Bearer "+"sk-pwSNKbNsm5NRoCIiiDflWapSsL06K4cGhe4-qSG21UTSFYIgF8GbxwuiePe9SZqnOuESWLAA")
+	req.Header.Add("Authorization", "Bearer "+"oCIiiDflWapSsL06K4cGhe4-qSG21UTSFYIgF8GbxwuiePe9SZqnOuESWLAA")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -363,7 +363,7 @@ func (open *OpenaiStorage) RunThread(threadID string, assistantID string) (strin
 	}
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("OpenAI-Beta", "assistants=v2")
-	req.Header.Add("Authorization", "Bearer "+"sk-4ZdDDujgqQ7Q3VeuYe6rbtrVjixAvT3BlbkFJSVYwSNKbNsm5NRoCIiiDflWapSsL06K4cGhe4-qSG21UTSFYIgF8GbxwuiePe9SZqnOuESWLAA")
+	req.Header.Add("Authorization", "Bearer "+"sL06K4cGhe4-qSG21UTSFYIgF8GbxwuiePe9SZqnOuESWLAA")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
