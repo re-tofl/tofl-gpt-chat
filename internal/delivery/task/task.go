@@ -4,11 +4,12 @@ import (
 	"context"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	"go.uber.org/zap"
+
 	"github.com/re-tofl/tofl-gpt-chat/internal/bootstrap"
 	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 	"github.com/re-tofl/tofl-gpt-chat/internal/repository"
 	"github.com/re-tofl/tofl-gpt-chat/internal/usecase"
-	"go.uber.org/zap"
 )
 
 type THandler struct {

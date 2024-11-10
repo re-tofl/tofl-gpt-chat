@@ -12,10 +12,10 @@ import (
 	"os"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
-	"github.com/re-tofl/tofl-gpt-chat/internal/bootstrap"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
 
+	"github.com/re-tofl/tofl-gpt-chat/internal/bootstrap"
 	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 )
 
