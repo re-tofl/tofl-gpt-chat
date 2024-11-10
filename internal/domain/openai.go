@@ -67,3 +67,12 @@ type Attachment struct {
 type Tool struct {
 	Type string `json:"type"`
 }
+
+type OpenAiImageRequest struct {
+	Base64 []Bases `json:"images"`
+	Prompt string  `json:"prompt"`
+}
+
+type Bases struct {
+	Base64 string `json:"image_base64"`
+}

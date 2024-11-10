@@ -6,15 +6,15 @@ import (
 	"net/http"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	task2 "github.com/re-tofl/tofl-gpt-chat/internal/delivery/openai"
-	"github.com/re-tofl/tofl-gpt-chat/internal/delivery/task"
-	"github.com/re-tofl/tofl-gpt-chat/internal/usecase"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/re-tofl/tofl-gpt-chat/internal/bootstrap"
+	task2 "github.com/re-tofl/tofl-gpt-chat/internal/delivery/openai"
+	"github.com/re-tofl/tofl-gpt-chat/internal/delivery/task"
 	"github.com/re-tofl/tofl-gpt-chat/internal/delivery/telegram"
 	"github.com/re-tofl/tofl-gpt-chat/internal/depgraph"
 	userRep "github.com/re-tofl/tofl-gpt-chat/internal/repository"
+	"github.com/re-tofl/tofl-gpt-chat/internal/usecase"
 )
 
 type PollEntrypoint struct {
