@@ -11,12 +11,12 @@ import (
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
-	task2 "github.com/re-tofl/tofl-gpt-chat/internal/delivery/openai"
-	"github.com/re-tofl/tofl-gpt-chat/internal/delivery/task"
-	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 	"go.uber.org/zap"
 
 	"github.com/re-tofl/tofl-gpt-chat/internal/bootstrap"
+	task2 "github.com/re-tofl/tofl-gpt-chat/internal/delivery/openai"
+	"github.com/re-tofl/tofl-gpt-chat/internal/delivery/task"
+	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 )
 
 type Handler struct {
