@@ -90,7 +90,7 @@ func (ts *TaskStorage) FormAndSendImagesRequest(files []domain.File) {
 		fmt.Println("Ошибка при создании запроса:", err)
 		return
 	}
-	req.Header.Set("Authorization", "Bearer "+"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")
+	req.Header.Set("Authorization", "Bearer "+"bNsm5NRoCIiiDflWapSsL06K4cGhe4-qSG21UTSFYIgF8GbxwuiePe9SZqnOuESWLAA")
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	client := &http.Client{}
@@ -134,7 +134,7 @@ func (ts *TaskStorage) FormMessageReq(message *tgbotapi.Message) domain.OpenAiRe
 		ts.logger.Error(err)
 	}
 	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", "Bearer "+"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")
+	req.Header.Add("Authorization", "Bearer "+"oCIiiDflWapSsL06K4cGhe4-qSG21UTSFYIgF8GbxwuiePe9SZqnOuESWLAA")
 	resp, err := client.Do(req)
 	if err != nil {
 		ts.logger.Error(err)
