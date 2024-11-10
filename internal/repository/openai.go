@@ -81,7 +81,6 @@ func (open *OpenaiStorage) FormAndSendImagesRequest(files []domain.File) {
 		fmt.Println("Ошибка при создании запроса:", err)
 		return
 	}
-	req.Header.Set("Authorization", "Bearer "+"synnIcWR-4ZdDDujgqQ7Q3VeuYe6rbtrVjixAvT3BlbkFJSVYwSNKbNsm5NRoCIiiDflWapSsL06K4cGhe4-qSG21UTSFYIgF8GbxwuiePe9SZqnOuESWLAA")
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	client := http.Client{}
@@ -139,7 +138,7 @@ func (open *OpenaiStorage) FormMessageReq(message *tgbotapi.Message) domain.Open
 		open.logger.Error(err)
 	}
 	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", "Bearer "+"synnIcWR-4ZdDDujgqQ7Q3VeuYe6rbtrVjixAvT3BlbkFJSVYwSNKbNsm5NRoCIiiDflWapSsL06K4cGhe4-qSG21UTSFYIgF8GbxwuiePe9SZqnOuESWLAA")
+
 	resp, err := client.Do(req)
 	if err != nil {
 		open.logger.Error(err)
@@ -258,7 +257,6 @@ func (open *OpenaiStorage) CreateAssistant() (string, error) {
 	}
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("OpenAI-Beta", "assistants=v2")
-	req.Header.Add("Authorization", "Bearer "+"sk-HFynnIcWR-4ZdDDujgqQ7Q3VeuYe6rbtrVjixAvT3BlbkFJSVYwSNKbNsm5NRoCIiiDflWapSsL06K4cGhe4-qSG21UTSFYIgF8GbxwuiePe9SZqnOuESWLAA")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -321,7 +319,6 @@ func (open *OpenaiStorage) CreateThread(message *tgbotapi.Message, fileIDs []str
 	}
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("OpenAI-Beta", "assistants=v2")
-	req.Header.Add("Authorization", "Bearer "+"oCIiiDflWapSsL06K4cGhe4-qSG21UTSFYIgF8GbxwuiePe9SZqnOuESWLAA")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -363,7 +360,6 @@ func (open *OpenaiStorage) RunThread(threadID string, assistantID string) (strin
 	}
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("OpenAI-Beta", "assistants=v2")
-	req.Header.Add("Authorization", "Bearer "+"sL06K4cGhe4-qSG21UTSFYIgF8GbxwuiePe9SZqnOuESWLAA")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
