@@ -4,17 +4,16 @@ import (
 	"context"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
-	"go.uber.org/zap"
-
 	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 )
 
 type OpenAiStore interface {
 	SendPDF(message *tgbotapi.Message, files []domain.File) string
+	SaveMedia(message *tgbotapi.Message, bot *tgbotapi.BotAPI) []domain.File
 }
 
-func ResolveProblemOnImage(ctx context.Context, os OpenAiStore, logger *zap.SugaredLogger, message *tgbotapi.Message, files []domain.File) string {
+func SaveMedia(ctx context.Context, os OpenAiStore, message *tgbotapi.Message, bot *tgbotapi.BotAPI) string {
+	files := os.SaveMedia(message, bot)
 	gptResponse := os.SendPDF(message, files)
 	return gptResponse
-
 }
