@@ -2,16 +2,16 @@ package repository
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
-	"io"
 	"io/ioutil"
-	"mime/multipart"
+	"log"
 	"net/http"
 	"os"
+	"time"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
 
@@ -24,149 +24,6 @@ type TaskStorage struct {
 	mongo    *mongo.Database
 	logger   *zap.SugaredLogger
 	cfg      *bootstrap.Config
-}
-
-func NewTaskStorage(p *sql.DB, m *mongo.Database, logger *zap.SugaredLogger, cfg *bootstrap.Config) *TaskStorage {
-	return &TaskStorage{
-		postgres: p,
-		mongo:    m,
-		logger:   logger,
-		cfg:      cfg,
-	}
-}
-
-func (ts *TaskStorage) Solve(message *domain.Message) {
-
-}
-
-func (ts *TaskStorage) Answer(message *domain.Message) {
-
-}
-
-func (ts *TaskStorage) FormAndSendImagesRequest(files []domain.File) {
-	var requestBody bytes.Buffer
-	writer := multipart.NewWriter(&requestBody)
-
-	for _, file := range files {
-		openedFile, err := os.Open(file.Path)
-		if err != nil {
-			fmt.Println("Ошибка при открытии файла:", err)
-			return
-		}
-
-		// Создаем часть формы для каждого файла
-		part, err := writer.CreateFormFile("file", file.Name)
-		if err != nil {
-			fmt.Println("Ошибка при создании формы:", err)
-			openedFile.Close() // Закрываем файл при ошибке
-			return
-		}
-
-		_, err = io.Copy(part, openedFile)
-		if err != nil {
-			fmt.Println("Ошибка при копировании файла:", err)
-			openedFile.Close()
-			return
-		}
-
-		openedFile.Close()
-	}
-
-	err := writer.WriteField("purpose", "assistants")
-	if err != nil {
-		fmt.Println("Ошибка при добавлении цели:", err)
-		return
-	}
-
-	err = writer.Close()
-	if err != nil {
-		fmt.Println("Ошибка при закрытии writer:", err)
-		return
-	}
-
-	// Создаем HTTP-запрос
-	req, err := http.NewRequest("POST", "https://api.openai.com/v1/files", &requestBody)
-	if err != nil {
-		fmt.Println("Ошибка при создании запроса:", err)
-		return
-	}
-	req.Header.Set("Authorization", "Bearer "+"bNsm5NRoCIiiDflWapSsL06K4cGhe4-qSG21UTSFYIgF8GbxwuiePe9SZqnOuESWLAA")
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		fmt.Println("Ошибка при отправке запроса:", err)
-		return
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Println("Ошибка при чтении ответа:", err)
-		return
-	}
-
-	if resp.StatusCode == http.StatusOK {
-		fmt.Println("Файл успешно загружен:", string(body))
-	} else {
-		fmt.Printf("Ошибка: статус %d\n%s\n", resp.StatusCode, string(body))
-	}
-}
-
-func (ts *TaskStorage) FormMessageReq(message *tgbotapi.Message) domain.OpenAiResponse {
-	openAiReq := domain.OpenAiRequest{Messages: make([]domain.GptMessage, 0)}
-	openAiReq.Model = "gpt-4o"
-
-	gptMessageUser := domain.GptMessage{Content: message.Text, Role: "user"}
-	gptMessageSystem := domain.GptMessage{Content: "ты помощник в решении задач ТФЯ, отвечаешь очень понятно, развёрнуто, по-русски", Role: "system"}
-	openAiReq.Messages = append(openAiReq.Messages, gptMessageSystem)
-	openAiReq.Messages = append(openAiReq.Messages, gptMessageUser)
-
-	jsonReq, err := json.Marshal(openAiReq)
-	if err != nil {
-		ts.logger.Error(err)
-	}
-
-	client := &http.Client{}
-	req, err := http.NewRequest("POST", "https://api.openai.com/v1/chat/completions", bytes.NewBuffer(jsonReq))
-	if err != nil {
-		ts.logger.Error(err)
-	}
-	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", "Bearer "+"oCIiiDflWapSsL06K4cGhe4-qSG21UTSFYIgF8GbxwuiePe9SZqnOuESWLAA")
-	resp, err := client.Do(req)
-	if err != nil {
-		ts.logger.Error(err)
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		ts.logger.Error(err)
-	}
-	fmt.Println(openAiReq)
-	response := ts.ParseGptResponse(body)
-	return response
-}
-
-func (ts *TaskStorage) ParseGptResponse(jsonResponse []byte) domain.OpenAiResponse {
-	response := domain.OpenAiResponse{}
-	err := json.Unmarshal(jsonResponse, &response)
-	if err != nil {
-		ts.logger.Error(err)
-	}
-	return response
-}
-
-func (ts *TaskStorage) SendToOpenAiTask(message *tgbotapi.Message, files []domain.File) domain.OpenAiResponse {
-	ts.FormAndSendImagesRequest(files)
-	answer := ts.FormMessageReq(message)
-	fmt.Println(answer)
-	return answer
-}
-
-func (ts *TaskStorage) SendImageToOpenAi(message *tgbotapi.Message) {
-	//message.Photo[0].FileID
 }
 
 type TranslateRequest struct {
@@ -184,13 +41,21 @@ type Translations struct {
 	DetectedLanguageCode string `json:"detectedLanguageCode"`
 }
 
-func NewTranslatorStorage(p *sql.DB, m *mongo.Database, logger *zap.SugaredLogger, cfg *bootstrap.Config) *TranslatorStorage {
-	return &TranslatorStorage{
+func NewTaskStorage(p *sql.DB, m *mongo.Database, logger *zap.SugaredLogger, cfg *bootstrap.Config) *TaskStorage {
+	return &TaskStorage{
 		postgres: p,
 		mongo:    m,
 		logger:   logger,
 		cfg:      cfg,
 	}
+}
+
+func (ts *TaskStorage) Solve(message *domain.Message) {
+
+}
+
+func (ts *TaskStorage) Answer(message *domain.Message) {
+
 }
 
 func (ts *TaskStorage) Translate(message *domain.Message) *domain.Message {
@@ -237,4 +102,76 @@ func (ts *TaskStorage) ParseTranslateResponse(jsonResponse []byte) (response Tra
 		ts.logger.Error(err)
 	}
 	return response
+}
+
+func (ts *TaskStorage) AddJsonFileToDB(pathToFile string) {
+	jsonArr := ts.loadJSONArrayFromFile(pathToFile)
+	collection := ts.mongo.Collection("items")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	_, err := collection.InsertMany(ctx, jsonArr)
+	if err != nil {
+		ts.logger.Error(err)
+		return
+	}
+	ts.logger.Info("JSON массив успешно добавлен в MongoDB!")
+}
+
+func (ts *TaskStorage) loadJSONArrayFromFile(path string) []interface{} {
+	file, err := os.Open(path)
+	if err != nil {
+		ts.logger.Error(err)
+		return nil
+	}
+	defer file.Close()
+	var jsonArray []interface{}
+	decoder := json.NewDecoder(file)
+	if err = decoder.Decode(&jsonArray); err != nil {
+		ts.logger.Error(err)
+		return nil
+	}
+
+	return jsonArray
+}
+
+func (ts *TaskStorage) CreateSearchIndex() {
+	collection := ts.mongo.Collection("items")
+	indexModel := mongo.IndexModel{
+		Keys: bson.D{{Key: "question", Value: "text"}, {Key: "answer", Value: "text"}},
+		//Options: options.Index().SetDefaultLanguage("english"),
+	}
+	_, err := collection.Indexes().CreateOne(context.TODO(), indexModel)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func (ts *TaskStorage) Search(userMessage *domain.Message) *domain.Message {
+	mongoSearchResults := ts.FindRelevantContext(userMessage.TranslatedMessageText)
+	if mongoSearchResults != nil {
+		userMessage.Context = mongoSearchResults
+	}
+	return userMessage
+}
+
+func (ts *TaskStorage) FindRelevantContext(userMessage string) []bson.M {
+	collection := ts.mongo.Collection("items")
+	filter := bson.M{"$text": bson.M{"$search": userMessage}}
+
+	cursor, err := collection.Find(context.TODO(), filter)
+	if err != nil {
+		ts.logger.Error(err)
+		return nil
+	}
+	defer cursor.Close(context.TODO())
+
+	var results []bson.M
+	if err = cursor.All(context.TODO(), &results); err != nil {
+		ts.logger.Error(err)
+		return nil
+	}
+
+	return results
 }

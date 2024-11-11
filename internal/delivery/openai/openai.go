@@ -7,7 +7,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/re-tofl/tofl-gpt-chat/internal/bootstrap"
-	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 	"github.com/re-tofl/tofl-gpt-chat/internal/repository"
 	"github.com/re-tofl/tofl-gpt-chat/internal/usecase"
 )
@@ -26,7 +25,7 @@ func NewOpenHandler(cfg *bootstrap.Config, log *zap.SugaredLogger) *OpenHandler 
 	}
 }
 
-func (openHandler *OpenHandler) SendToOpenAi(ctx context.Context, message *tgbotapi.Message, files []domain.File) {
-	openHandler.log.Infof(usecase.ResolveProblemOnImage(ctx, openHandler.openAi, openHandler.log, message, files))
-	openHandler.log.Infof("Succesful!")
+func (openHandler *OpenHandler) SaveMediaAndSendToAi(ctx context.Context, message *tgbotapi.Message, bot *tgbotapi.BotAPI) string {
+	gptResponse := usecase.SaveMedia(ctx, openHandler.openAi, message, bot)
+	return gptResponse
 }
