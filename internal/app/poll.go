@@ -9,11 +9,9 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/re-tofl/tofl-gpt-chat/internal/bootstrap"
-	task2 "github.com/re-tofl/tofl-gpt-chat/internal/delivery/openai"
-	"github.com/re-tofl/tofl-gpt-chat/internal/delivery/task"
 	"github.com/re-tofl/tofl-gpt-chat/internal/delivery/telegram"
 	"github.com/re-tofl/tofl-gpt-chat/internal/depgraph"
-	userRep "github.com/re-tofl/tofl-gpt-chat/internal/repository"
+	"github.com/re-tofl/tofl-gpt-chat/internal/repository"
 	"github.com/re-tofl/tofl-gpt-chat/internal/usecase"
 )
 
@@ -21,7 +19,6 @@ type PollEntrypoint struct {
 	Config *bootstrap.Config
 	server *http.Server
 	tgbot  *telegram.Handler
-	task   *task.THandler
 }
 
 func (e *PollEntrypoint) Init(ctx context.Context) error {
@@ -40,15 +37,13 @@ func (e *PollEntrypoint) Init(ctx context.Context) error {
 		Addr:    "127.0.0.1:" + e.Config.ServerPort,
 	}
 
-	taskRepo := userRep.NewTaskStorage(nil, nil, logger, e.Config)
-	openAiRepo := userRep.NewOpenaiStorage(logger, e.Config)
+	openAiRepo := repository.NewOpenaiStorage(logger, e.Config)
+	speechRepo := repository.NewSpeechStorage(logger, e.Config)
 
-	openHandler := task2.NewOpenHandler(e.Config, logger)
-	e.task = task.NewTaskHandler(e.Config, logger, taskRepo, openAiRepo)
+	speechUC := usecase.NewSpeechUsecase(speechRepo)
+	openAiUC := usecase.NewOpenAiUseCase(openAiRepo)
 
-	usecase.NewUserHandler(logger, userRep.NewUserStorage(logger, nil))
-
-	e.tgbot = telegram.NewHandler(e.Config, logger, e.task, openHandler)
+	e.tgbot = telegram.NewHandler(e.Config, logger, openAiUC, speechUC)
 
 	return nil
 }
