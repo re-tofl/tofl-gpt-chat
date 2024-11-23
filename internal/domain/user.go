@@ -2,13 +2,6 @@ package domain
 
 import "time"
 
-const (
-	StateStart = iota
-	StateWaiting
-	StateProblem
-	StateTheory
-)
-
 type User struct {
 	Id        int
 	CreatedAt time.Time
