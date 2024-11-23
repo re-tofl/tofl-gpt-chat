@@ -107,6 +107,11 @@ func (h *Handler) processUpdate(ctx context.Context, update *tgbotapi.Update) {
 		"username", update.Message.From.UserName,
 		"message", messageText)
 
+	if update.Message.IsCommand() {
+		h.processCommand(ctx, update.Message)
+		return
+	}
+
 	if update.Message.Photo != nil || update.Message.Document != nil {
 		h.log.Infow("received photo or file from ",
 			"username", update.Message.From.UserName)
@@ -119,14 +124,7 @@ func (h *Handler) processUpdate(ctx context.Context, update *tgbotapi.Update) {
 		h.handleVoice(ctx, update.Message, h.bot)
 	}
 
-	fmt.Println(update.Message)
-
-	if update.Message.IsCommand() {
-		h.processCommand(ctx, update.Message)
-	} else {
-		h.handleMessage(ctx, update.Message)
-	}
-
+	h.handleMessage(ctx, update.Message)
 }
 
 func (h *Handler) handleProblemWithImages(ctx context.Context, message *tgbotapi.Message) {
@@ -136,7 +134,6 @@ func (h *Handler) handleProblemWithImages(ctx context.Context, message *tgbotapi
 }
 
 func (h *Handler) handleVoice(ctx context.Context, message *tgbotapi.Message, bot *tgbotapi.BotAPI) {
-	fmt.Println("here")
 	fileId := message.Voice.FileID
 	file, err := bot.GetFile(tgbotapi.FileConfig{FileID: fileId})
 	if err != nil {
