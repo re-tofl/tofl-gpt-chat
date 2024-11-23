@@ -188,13 +188,19 @@ func (h *Handler) handleMessage(ctx context.Context, message *tgbotapi.Message) 
 		reply.Text = fmt.Sprintf("Ты задал вопрос: %s. Отправляю в GPT...", question)
 		h.Send(reply)
 		h.handleGptTextMessage(ctx, message)
-
-		h.mu.Lock()
-		h.userStates[message.Chat.ID] = domain.StartState
-		h.mu.Unlock()
+	case domain.TheoryInputState:
+		err := h.Theory(ctx, message)
+		if err != nil {
+			h.log.Errorw("h.Theory", zap.Error(err))
+			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Произошла ошибка"))
+		}
 	default:
-		reply.Text = "Неизвестное состояние."
+		h.Send(tgbotapi.NewMessage(message.Chat.ID, "Введите команду"))
 	}
+
+	h.mu.Lock()
+	h.userStates[message.Chat.ID] = domain.StartState
+	h.mu.Unlock()
 }
 
 func (h *Handler) processCommand(ctx context.Context, message *tgbotapi.Message) {
@@ -211,9 +217,19 @@ func (h *Handler) processCommand(ctx context.Context, message *tgbotapi.Message)
 		h.Send(reply)
 	case "theory":
 		reply.Text = "Ответ на теорию"
+
+		h.mu.Lock()
+		h.userStates[message.Chat.ID] = domain.TheoryInputState
+		h.mu.Unlock()
+
 		h.Send(reply)
 	case "problem":
 		reply.Text = "Ответ на задачу"
+
+		h.mu.Lock()
+		h.userStates[message.Chat.ID] = domain.ProblemInputState
+		h.mu.Unlock()
+
 		h.Send(reply)
 	case "imageProblem":
 		reply.Text = "Ответ на задачу с фотографиями"
