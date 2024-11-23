@@ -43,6 +43,30 @@ func (h *Handler) requestParser(ctx context.Context, message *tgbotapi.Message) 
 		return nil, fmt.Errorf("resp.StatusCode: %w", err)
 	}
 
+	var data domain.ParserResponse
+	err = json.NewDecoder(resp.Body).Decode(&data)
+	if err != nil {
+		h.log.Errorw("json.Unmarshal", zap.Error(err))
+		h.Send(tgbotapi.NewMessage(message.Chat.ID, "Произошла ошибка"))
+		return nil, fmt.Errorf("json.Unmarshal: %w", err)
+	}
+
+	if data.ErrorTrs != nil {
+		h.log.Errorw("data.ErrorTrs", zap.Error(err))
+		h.Send(tgbotapi.NewMessage(message.Chat.ID, "Ошибки TRS"))
+		for _, err := range data.ErrorTrs {
+			h.Send(tgbotapi.NewMessage(message.Chat.ID, err))
+		}
+	}
+
+	if data.ErrorInterpretation != nil {
+		h.log.Errorw("data.ErrorInterpretation", zap.Error(err))
+		h.Send(tgbotapi.NewMessage(message.Chat.ID, "Ошибки интерпретации"))
+		for _, err := range data.ErrorInterpretation {
+			h.Send(tgbotapi.NewMessage(message.Chat.ID, err))
+		}
+	}
+
 	return resp, nil
 }
 
