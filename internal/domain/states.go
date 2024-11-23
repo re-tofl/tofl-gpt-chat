@@ -9,5 +9,6 @@ const (
 	ProblemFormalState
 	ProblemRateState
 	TheoryInputState
+	TheoryRateState
 	GPTInputState
 )
