@@ -104,6 +104,58 @@ func (h *Handler) Problem(ctx context.Context, message *tgbotapi.Message) error 
 	return nil
 }
 
-func (h *Handler) Theory(ctx context.Context) error {
-	panic("implement me")
+func (h *Handler) requestTheoryLLM(ctx context.Context, message *tgbotapi.Message) error {
+	var data domain.LLMRequest
+	data.Context = message.Text
+
+	b, err := json.Marshal(data)
+	if err != nil {
+		h.log.Errorw("json.Marshal", zap.Error(err))
+		return fmt.Errorf("json.Marshal: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", h.cfg.LLMURL, bytes.NewBuffer(b))
+	if err != nil {
+		h.log.Errorw("http.NewRequest", zap.Error(err))
+		return fmt.Errorf("http.NewRequest: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		h.log.Errorw("client.Do", zap.Error(err))
+		return fmt.Errorf("client.Do: %w", err)
+	}
+
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			h.log.Errorw("resp.Body.Close", zap.Error(err))
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		h.log.Errorw("resp.StatusCode", zap.Error(err))
+		return fmt.Errorf("resp.StatusCode: %w", err)
+	}
+
+	var dataLLM domain.LLMTheoryResponse
+	err = json.NewDecoder(resp.Body).Decode(&dataLLM)
+	if err != nil {
+		h.log.Errorw("json.NewDecoder", zap.Error(err))
+		return fmt.Errorf("json.NewDecoder: %w", err)
+	}
+
+	h.Send(tgbotapi.NewMessage(message.Chat.ID, dataLLM.Result))
+	return nil
+}
+
+func (h *Handler) Theory(ctx context.Context, message *tgbotapi.Message) error {
+	err := h.requestTheoryLLM(ctx, message)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
