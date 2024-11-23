@@ -130,7 +130,8 @@ func (h *Handler) Problem(ctx context.Context, message *tgbotapi.Message) error 
 
 func (h *Handler) requestTheoryLLM(ctx context.Context, message *tgbotapi.Message) error {
 	var data domain.LLMRequest
-	data.Context = message.Text
+	data.Prompt = message.Text
+	data.Type = 0
 
 	b, err := json.Marshal(data)
 	if err != nil {
@@ -138,7 +139,7 @@ func (h *Handler) requestTheoryLLM(ctx context.Context, message *tgbotapi.Messag
 		return fmt.Errorf("json.Marshal: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", h.cfg.LLMURL, bytes.NewBuffer(b))
+	req, err := http.NewRequestWithContext(ctx, "POST", h.cfg.LLMURL+"/process", bytes.NewBuffer(b))
 	if err != nil {
 		h.log.Errorw("http.NewRequest", zap.Error(err))
 		return fmt.Errorf("http.NewRequest: %w", err)
