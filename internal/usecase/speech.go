@@ -2,15 +2,23 @@ package usecase
 
 import (
 	"context"
-
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
 type SpeechStore interface {
 	SpeechToText(filePath string) string
 }
 
-func ConvertSpeechToText(ctx context.Context, s SpeechStore, filePath string, bot *tgbotapi.BotAPI) string {
-	answer := s.SpeechToText(filePath)
+type SpeechUsecase struct {
+	store SpeechStore
+}
+
+func NewSpeechUsecase(store SpeechStore) *SpeechUsecase {
+	return &SpeechUsecase{
+		store: store,
+	}
+}
+
+func (s *SpeechUsecase) ConvertSpeechToText(ctx context.Context, filePath string) string {
+	answer := s.store.SpeechToText(filePath)
 	return answer
 }
