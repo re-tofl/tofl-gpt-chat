@@ -29,3 +29,7 @@ func (openHandler *OpenHandler) SaveMediaAndSendToAi(ctx context.Context, messag
 	gptResponse := usecase.SaveMedia(ctx, openHandler.openAi, message, bot)
 	return gptResponse
 }
+func (openHandler *OpenHandler) SendToGpt(ctx context.Context, message *tgbotapi.Message) string {
+	gptResponse := usecase.SendToGpt(ctx, openHandler.openAi, message)
+	return gptResponse
+}
