@@ -3,6 +3,7 @@ package telegram
 import (
 	"context"
 	"fmt"
+	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 	"io"
 	"net/http"
 	"os"
@@ -30,7 +31,7 @@ type Handler struct {
 	openAiUC   OpenAiUsecase
 	speechUC   SpeechUsecase
 	mu         sync.Mutex
-	userStates map[int64]string
+	userStates map[int64]int
 }
 
 func NewHandler(cfg *bootstrap.Config, log *zap.SugaredLogger,
@@ -174,22 +175,26 @@ func (h *Handler) handleGptTextMessage(ctx context.Context, message *tgbotapi.Me
 func (h *Handler) handleMessage(ctx context.Context, message *tgbotapi.Message) {
 	reply := tgbotapi.NewMessage(message.Chat.ID, "")
 
-	if state, exists := userStates[message.Chat.ID]; exists {
-		switch state {
-		case "awaiting_gpt_question":
-			question := message.Text
-			reply.Text = fmt.Sprintf("Ты задал вопрос: %s. Отправляю в GPT...", question)
-			h.Send(reply)
-			h.handleGptTextMessage(ctx, message)
-
-			delete(userStates, message.Chat.ID)
-		default:
-			reply.Text = "Неизвестное состояние."
-		}
-		return
+	state, ok := h.userStates[message.Chat.ID]
+	if !ok {
+		h.mu.Lock()
+		h.userStates[message.Chat.ID] = domain.StartState
+		h.mu.Unlock()
 	}
 
-	h.processCommand(ctx, message)
+	switch state {
+	case domain.GPTInputState:
+		question := message.Text
+		reply.Text = fmt.Sprintf("Ты задал вопрос: %s. Отправляю в GPT...", question)
+		h.Send(reply)
+		h.handleGptTextMessage(ctx, message)
+
+		h.mu.Lock()
+		h.userStates[message.Chat.ID] = domain.StartState
+		h.mu.Unlock()
+	default:
+		reply.Text = "Неизвестное состояние."
+	}
 }
 
 func (h *Handler) processCommand(ctx context.Context, message *tgbotapi.Message) {
@@ -198,7 +203,11 @@ func (h *Handler) processCommand(ctx context.Context, message *tgbotapi.Message)
 	switch message.Command() {
 	case "gpt":
 		reply.Text = "Введи вопрос к gpt:"
-		userStates[message.Chat.ID] = "awaiting_gpt_question"
+
+		h.mu.Lock()
+		h.userStates[message.Chat.ID] = domain.GPTInputState
+		h.mu.Unlock()
+
 		h.Send(reply)
 	case "theory":
 		reply.Text = "Ответ на теорию"

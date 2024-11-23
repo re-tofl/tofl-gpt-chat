@@ -8,4 +8,5 @@ const (
 	ProblemParserApprovalState
 	ProblemFormalState
 	ProblemRateState
+	GPTInputState
 )
