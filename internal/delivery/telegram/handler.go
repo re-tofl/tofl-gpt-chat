@@ -193,6 +193,13 @@ func (h *Handler) handleMessage(ctx context.Context, message *tgbotapi.Message) 
 		h.Send(reply)
 		h.handleGptTextMessage(ctx, message)
 
+	case domain.ProblemInputState:
+		err := h.Problem(ctx, message)
+		if err != nil {
+			h.log.Errorw("h.Problem", zap.Error(err))
+			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Произошла ошибка"))
+		}
+
 	case domain.TheoryInputState:
 		err := h.Theory(ctx, message)
 		if err != nil {
@@ -237,7 +244,7 @@ func (h *Handler) processCommand(ctx context.Context, message *tgbotapi.Message)
 
 		h.Send(reply)
 	case "theory":
-		reply.Text = "Ответ на теорию"
+		reply.Text = "Введите вопрос по теории"
 
 		h.mu.Lock()
 		h.userStates[message.Chat.ID] = domain.TheoryInputState
@@ -245,7 +252,7 @@ func (h *Handler) processCommand(ctx context.Context, message *tgbotapi.Message)
 
 		h.Send(reply)
 	case "problem":
-		reply.Text = "Ответ на задачу"
+		reply.Text = "Введите текст задачи"
 
 		h.mu.Lock()
 		h.userStates[message.Chat.ID] = domain.ProblemInputState
