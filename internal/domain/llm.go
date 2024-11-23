@@ -1,7 +1,8 @@
 package domain
 
 type LLMRequest struct {
-	Context string `json:"context"`
+	Type   int    `json:"type"`
+	Prompt string `json:"prompt"`
 }
 
 type LLMTheoryResponse struct {
