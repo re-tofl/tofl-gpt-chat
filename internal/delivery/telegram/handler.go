@@ -24,23 +24,30 @@ type SpeechUsecase interface {
 	ConvertSpeechToText(ctx context.Context, filePath string) string
 }
 
+type TaskUsecase interface {
+	RateTheory(ctx context.Context, message *tgbotapi.Message) error
+}
+
 type Handler struct {
 	cfg        *bootstrap.Config
 	log        *zap.SugaredLogger
 	bot        *tgbotapi.BotAPI
 	openAiUC   OpenAiUsecase
 	speechUC   SpeechUsecase
+	taskUC     TaskUsecase
 	mu         sync.Mutex
 	userStates map[int64]int
 }
 
 func NewHandler(cfg *bootstrap.Config, log *zap.SugaredLogger,
-	o OpenAiUsecase, s SpeechUsecase) *Handler {
+	o OpenAiUsecase, s SpeechUsecase, t TaskUsecase) *Handler {
 	return &Handler{
-		cfg:      cfg,
-		log:      log,
-		openAiUC: o,
-		speechUC: s,
+		cfg:        cfg,
+		log:        log,
+		openAiUC:   o,
+		speechUC:   s,
+		taskUC:     t,
+		userStates: make(map[int64]int),
 	}
 }
 
@@ -188,12 +195,29 @@ func (h *Handler) handleMessage(ctx context.Context, message *tgbotapi.Message) 
 		reply.Text = fmt.Sprintf("Ты задал вопрос: %s. Отправляю в GPT...", question)
 		h.Send(reply)
 		h.handleGptTextMessage(ctx, message)
+
 	case domain.TheoryInputState:
 		err := h.Theory(ctx, message)
 		if err != nil {
 			h.log.Errorw("h.Theory", zap.Error(err))
 			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Произошла ошибка"))
+		} else {
+			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Напишите +, если ответ правильный, и -, если неправильный"))
+
+			h.mu.Lock()
+			h.userStates[message.Chat.ID] = domain.TheoryRateState
+			h.mu.Unlock()
+
+			return
 		}
+
+	case domain.TheoryRateState:
+		err := h.RateTheory(ctx, message)
+		if err != nil {
+			h.log.Errorw("h.RateTheory", zap.Error(err))
+			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Произошла ошибка: "+err.Error()))
+		}
+
 	default:
 		h.Send(tgbotapi.NewMessage(message.Chat.ID, "Введите команду"))
 	}

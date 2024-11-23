@@ -42,8 +42,9 @@ func (e *PollEntrypoint) Init(ctx context.Context) error {
 
 	speechUC := usecase.NewSpeechUsecase(speechRepo)
 	openAiUC := usecase.NewOpenAiUseCase(openAiRepo)
+	taskUC := usecase.NewTaskUsecase()
 
-	e.tgbot = telegram.NewHandler(e.Config, logger, openAiUC, speechUC)
+	e.tgbot = telegram.NewHandler(e.Config, logger, openAiUC, speechUC, taskUC)
 
 	return nil
 }

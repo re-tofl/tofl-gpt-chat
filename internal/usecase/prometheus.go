@@ -5,9 +5,9 @@ import "github.com/prometheus/client_golang/prometheus"
 type PrometheusMetrics struct {
 	RegisteredUserCount prometheus.Gauge
 	Hits                *prometheus.CounterVec
-	Errors              *prometheus.CounterVec
-	Methods             *prometheus.CounterVec
-	RequestDuration     *prometheus.HistogramVec
+	Errors              prometheus.Counter
+	GoodResponsesLLM    prometheus.Counter
+	BadResponsesLLM     prometheus.Counter
 }
 
 func NewPrometheusMetrics() *PrometheusMetrics {
@@ -25,36 +25,34 @@ func NewPrometheusMetrics() *PrometheusMetrics {
 		}, []string{"status", "path"},
 	)
 
-	errorsInProject := prometheus.NewCounterVec(
+	errorsInProject := prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "tg_chat_errors",
 			Help: "Number of errors some type in bot.",
-		}, []string{"error_type"},
-	)
-
-	methods := prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "tg_methods",
-			Help: "called methods.",
-		}, []string{"method"},
-	)
-
-	requestDuration := prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    "llm_request_duration_seconds",
-			Help:    "Histogram of request to llm durations.",
-			Buckets: prometheus.DefBuckets,
 		},
-		[]string{"endpoint"},
 	)
 
-	prometheus.MustRegister(activeSessionsCount, hits, errorsInProject, methods, requestDuration)
+	goodResponsesLLM := prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "llm_responses",
+			Help: "Number of good responses from LLM.",
+		},
+	)
+
+	badResponsesLLM := prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "llm_errors",
+			Help: "Number of bad responses from LLM.",
+		},
+	)
+
+	prometheus.MustRegister(activeSessionsCount, hits, errorsInProject, goodResponsesLLM, badResponsesLLM)
 
 	return &PrometheusMetrics{
 		RegisteredUserCount: activeSessionsCount,
 		Hits:                hits,
 		Errors:              errorsInProject,
-		Methods:             methods,
-		RequestDuration:     requestDuration,
+		GoodResponsesLLM:    goodResponsesLLM,
+		BadResponsesLLM:     badResponsesLLM,
 	}
 }

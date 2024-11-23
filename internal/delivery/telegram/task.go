@@ -159,3 +159,7 @@ func (h *Handler) Theory(ctx context.Context, message *tgbotapi.Message) error {
 
 	return nil
 }
+
+func (h *Handler) RateTheory(ctx context.Context, message *tgbotapi.Message) error {
+	return h.taskUC.RateTheory(ctx, message)
+}
