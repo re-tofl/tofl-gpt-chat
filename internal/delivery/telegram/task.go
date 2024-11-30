@@ -197,11 +197,11 @@ func (h *Handler) requestTheoryLLM(ctx context.Context, message *tgbotapi.Messag
 }
 
 func (h *Handler) Theory(ctx context.Context, message *tgbotapi.Message) error {
-	h.handleGptTextMessage(ctx, message)
-	/*err := h.requestTheoryLLM(ctx, message)
+	//h.handleGptTextMessage(ctx, message)
+	err := h.requestTheoryLLM(ctx, message)
 	if err != nil {
 		return err
-	}*/
+	}
 
 	return nil
 }

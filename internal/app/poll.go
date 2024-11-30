@@ -48,7 +48,7 @@ func (e *PollEntrypoint) Init(ctx context.Context) error {
 	taskUC := usecase.NewTaskUsecase()
 
 	mongoAdapter := adapters.NewAdapterMongo(e.Config)
-	postgresAdapter := adapters.NewAdapterPG(e.Config)
+	//postgresAdapter := adapters.NewAdapterPG(e.Config)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -57,14 +57,14 @@ func (e *PollEntrypoint) Init(ctx context.Context) error {
 		log.Fatalf("Не удалось инициализировать MongoAdapter: %v", err)
 	}
 
-	if err = postgresAdapter.Init(ctx); err != nil {
-		log.Fatalf("Не удалось инициализировать PostgresAdapter: %v", err)
-	}
+	//if err = postgresAdapter.Init(ctx); err != nil {
+	//	log.Fatalf("Не удалось инициализировать PostgresAdapter: %v", err)
+	//}
 
-	searchRepo := repository.NewSearchStorage(postgresAdapter, logger)
+	searchRepo := repository.NewSearchStorage(logger)
 	searchUC := usecase.NewSearchUseCase(searchRepo)
 
-	e.tgbot = telegram.NewHandler(e.Config, logger, openAiUC, speechUC, taskUC, mongoAdapter, postgresAdapter, searchUC)
+	e.tgbot = telegram.NewHandler(e.Config, logger, openAiUC, speechUC, taskUC, mongoAdapter, searchUC)
 
 	return nil
 }

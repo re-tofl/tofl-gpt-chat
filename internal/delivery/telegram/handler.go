@@ -54,7 +54,7 @@ type Handler struct {
 }
 
 func NewHandler(cfg *bootstrap.Config, log *zap.SugaredLogger,
-	o OpenAiUsecase, s SpeechUsecase, t TaskUsecase, m *adapters.AdapterMongo, p *adapters.AdapterPG, search SearchUsecase) *Handler {
+	o OpenAiUsecase, s SpeechUsecase, t TaskUsecase, m *adapters.AdapterMongo, search SearchUsecase) *Handler {
 	return &Handler{
 		cfg:        cfg,
 		log:        log,
@@ -64,7 +64,6 @@ func NewHandler(cfg *bootstrap.Config, log *zap.SugaredLogger,
 		userStates: make(map[int64]int),
 		mongo:      m,
 		achs:       CreateAchMap(),
-		postgres:   p,
 		searchUC:   search,
 	}
 }
@@ -259,6 +258,8 @@ func (h *Handler) handleMessage(ctx context.Context, message *tgbotapi.Message) 
 		if err != nil {
 			h.log.Errorw("h.RateTheory", zap.Error(err))
 			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Произошла ошибка: "+err.Error()))
+		} else {
+			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Спасибо за оценку!"))
 		}
 
 	default:
@@ -298,17 +299,10 @@ func (h *Handler) processCommand(ctx context.Context, message *tgbotapi.Message)
 		h.mu.Unlock()
 
 		h.Send(reply)
-	case "imageProblem":
-		reply.Text = "Ответ на задачу с фотографиями"
-		h.handleProblemWithImages(ctx, message)
-		h.Send(reply)
+
 	case "developers":
 		reply.Text = "тут будут контакты разработчиков"
 		h.Send(reply)
-
-	case "createMatrix":
-		h.searchUC.DatabaseToVector(ctx)
-		///////
 
 	default:
 		reply.Text = "Неизвестная команда"
