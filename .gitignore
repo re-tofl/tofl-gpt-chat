@@ -21,3 +21,6 @@ go.work
 
 ### Config
 *.env
+
+### Project files
+upload/
