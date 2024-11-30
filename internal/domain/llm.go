@@ -6,5 +6,5 @@ type LLMRequest struct {
 }
 
 type LLMTheoryResponse struct {
-	Result string `json:"result"`
+	Response string `json:"response"`
 }

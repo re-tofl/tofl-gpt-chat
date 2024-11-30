@@ -192,7 +192,7 @@ func (h *Handler) requestTheoryLLM(ctx context.Context, message *tgbotapi.Messag
 		return fmt.Errorf("json.NewDecoder: %w", err)
 	}
 
-	h.Send(tgbotapi.NewMessage(message.Chat.ID, dataLLM.Result))
+	h.Send(tgbotapi.NewMessage(message.Chat.ID, dataLLM.Response))
 	return nil
 }
 
