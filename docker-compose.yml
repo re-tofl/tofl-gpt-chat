@@ -1,19 +1,37 @@
 services:
   postgres:
-    image: postgres:latest
-    restart: unless-stopped
+    build:
+      context: .
+    image: postgres:16
+    container_name: pgvector-db
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: vectors
     ports:
-      - "8081:5432"
+      - "5432:5432"
     volumes:
-      - db-data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+
+
+  mongodb:
+    image: mongo:6.0
+    container_name: mongodb_tofl
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: Artem557
+
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+      - ./init.js:/docker-entrypoint-initdb.d/init.js:ro
     env_file:
       - .env
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
+
+
   prometheus:
     image: prom/prometheus:latest
     ports:
@@ -39,3 +57,5 @@ services:
 volumes:
   grafana_data:
   db-data:
+
+  mongo_data:

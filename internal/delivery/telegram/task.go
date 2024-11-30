@@ -5,10 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
-	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
-	"go.uber.org/zap"
 	"net/http"
+
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	"go.uber.org/zap"
+
+	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 )
 
 // TODO: тут я уже решил забить на чистую архитектуру, потому что под нее надо рефакторить весь проект
@@ -195,10 +197,11 @@ func (h *Handler) requestTheoryLLM(ctx context.Context, message *tgbotapi.Messag
 }
 
 func (h *Handler) Theory(ctx context.Context, message *tgbotapi.Message) error {
-	err := h.requestTheoryLLM(ctx, message)
+	h.handleGptTextMessage(ctx, message)
+	/*err := h.requestTheoryLLM(ctx, message)
 	if err != nil {
 		return err
-	}
+	}*/
 
 	return nil
 }

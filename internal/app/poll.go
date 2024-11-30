@@ -3,9 +3,12 @@ package app
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/re-tofl/tofl-gpt-chat/internal/adapters"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/re-tofl/tofl-gpt-chat/internal/bootstrap"
@@ -44,7 +47,24 @@ func (e *PollEntrypoint) Init(ctx context.Context) error {
 	openAiUC := usecase.NewOpenAiUseCase(openAiRepo)
 	taskUC := usecase.NewTaskUsecase()
 
-	e.tgbot = telegram.NewHandler(e.Config, logger, openAiUC, speechUC, taskUC)
+	mongoAdapter := adapters.NewAdapterMongo(e.Config)
+	postgresAdapter := adapters.NewAdapterPG(e.Config)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err = mongoAdapter.Init(ctx); err != nil {
+		log.Fatalf("Не удалось инициализировать MongoAdapter: %v", err)
+	}
+
+	if err = postgresAdapter.Init(ctx); err != nil {
+		log.Fatalf("Не удалось инициализировать PostgresAdapter: %v", err)
+	}
+
+	searchRepo := repository.NewSearchStorage(postgresAdapter, logger)
+	searchUC := usecase.NewSearchUseCase(searchRepo)
+
+	e.tgbot = telegram.NewHandler(e.Config, logger, openAiUC, speechUC, taskUC, mongoAdapter, postgresAdapter, searchUC)
 
 	return nil
 }

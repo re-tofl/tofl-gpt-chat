@@ -1,35 +1,32 @@
 package repository
 
 import (
+	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
-	"log"
+	"io"
+	"net/http"
 	"os"
-	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
+	"github.com/re-tofl/tofl-gpt-chat/internal/adapters"
 	"go.uber.org/zap"
 
 	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 )
 
 type SearchStorage struct {
-	postgres *sql.DB
-	mongo    *mongo.Database
+	postgres *adapters.AdapterPG
 	logger   *zap.SugaredLogger
 }
 
-func NewSearchStorage(p *sql.DB, m *mongo.Database, logger *zap.SugaredLogger) *SearchStorage {
+func NewSearchStorage(p *adapters.AdapterPG, logger *zap.SugaredLogger) *SearchStorage {
 	return &SearchStorage{
-		postgres: p,
-		mongo:    m,
 		logger:   logger,
+		postgres: p,
 	}
 }
 
-func (s *SearchStorage) AddJsonFileToDB(pathToFile string) {
+/*func (s *SearchStorage) AddJsonFileToDB(pathToFile string) {
 	jsonArr := s.loadJSONArrayFromFile(pathToFile)
 	collection := s.mongo.Collection("items")
 
@@ -42,16 +39,16 @@ func (s *SearchStorage) AddJsonFileToDB(pathToFile string) {
 		return
 	}
 	s.logger.Info("JSON массив успешно добавлен в MongoDB!")
-}
+}*/
 
-func (s *SearchStorage) loadJSONArrayFromFile(path string) []interface{} {
+func (s *SearchStorage) LoadJSONArrayFromFile(path string) []domain.DatabaseItem {
 	file, err := os.Open(path)
 	if err != nil {
 		s.logger.Error(err)
 		return nil
 	}
 	defer file.Close()
-	var jsonArray []interface{}
+	var jsonArray []domain.DatabaseItem
 	decoder := json.NewDecoder(file)
 	if err = decoder.Decode(&jsonArray); err != nil {
 		s.logger.Error(err)
@@ -61,42 +58,44 @@ func (s *SearchStorage) loadJSONArrayFromFile(path string) []interface{} {
 	return jsonArray
 }
 
-func (s *SearchStorage) CreateSearchIndex() {
-	collection := s.mongo.Collection("items")
-	indexModel := mongo.IndexModel{
-		Keys: bson.D{{Key: "question", Value: "text"}, {Key: "answer", Value: "text"}},
-		//Options: options.Index().SetDefaultLanguage("english"),
-	}
-	_, err := collection.Indexes().CreateOne(context.TODO(), indexModel)
-	if err != nil {
-		log.Fatal(err)
-	}
+func (s *SearchStorage) DoDatabaseEmbedding(ctx context.Context, items []domain.DatabaseItem) {
+	/*for _, item := range items {
+		vector := s.SendEmbeddingReq(item)
+
+	}*/
+}
+
+func (s *SearchStorage) PushVectorToMatrix(vector domain.EmbeddingResp) {
 
 }
 
-func (s *SearchStorage) Search(userMessage *domain.Message) *domain.Message {
-	mongoSearchResults := s.FindRelevantContext(userMessage.TranslatedMessageText)
-	if mongoSearchResults != nil {
-		userMessage.Context = mongoSearchResults
-	}
-	return userMessage
-}
-
-func (s *SearchStorage) FindRelevantContext(userMessage string) []bson.M {
-	collection := s.mongo.Collection("items")
-	filter := bson.M{"$text": bson.M{"$search": userMessage}}
-
-	cursor, err := collection.Find(context.TODO(), filter)
+func (s *SearchStorage) SendEmbeddingReq(item domain.DatabaseItem) domain.EmbeddingResp {
+	jsonReq, err := json.Marshal(item)
 	if err != nil {
 		s.logger.Error(err)
-		return nil
-	}
-	defer cursor.Close(context.TODO())
-
-	var results []bson.M
-	if err = cursor.All(context.TODO(), &results); err != nil {
-		return nil
 	}
 
-	return results
+	req, err := http.NewRequest("POST", "http://127.0.0.1:8000/embed", bytes.NewBuffer(jsonReq))
+	if err != nil {
+		s.logger.Error(err)
+	}
+
+	client := http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		s.logger.Error(err)
+	}
+
+	defer resp.Body.Close()
+	byteResp, err := io.ReadAll(resp.Body)
+	if err != nil {
+		s.logger.Error(err)
+	}
+
+	embeddingResponse := domain.EmbeddingResp{}
+	err = json.Unmarshal(byteResp, &embeddingResponse)
+	if err != nil {
+		s.logger.Error(err)
+	}
+	return embeddingResponse
 }
