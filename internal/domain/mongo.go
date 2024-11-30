@@ -9,5 +9,5 @@ type UserAchievement struct {
 type Achievement struct {
 	Title string `json:"ach_title"`
 	Desc  string `json:"ach_desc"`
-	Grade string `json:"ach_grade"`
+	Grade int    `json:"ach_grade"`
 }

@@ -22,10 +22,9 @@ import (
 )
 
 type OpenaiStorage struct {
-	logger      *zap.SugaredLogger
-	cfg         *bootstrap.Config
-	fileIds     []string
-	assistantId string
+	logger  *zap.SugaredLogger
+	cfg     *bootstrap.Config
+	fileIds []string
 }
 
 func NewOpenaiStorage(logger *zap.SugaredLogger, cfg *bootstrap.Config) *OpenaiStorage {

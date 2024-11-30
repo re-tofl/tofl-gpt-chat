@@ -3,12 +3,18 @@ package telegram
 import (
 	"context"
 	"fmt"
-	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/re-tofl/tofl-gpt-chat/internal/adapters"
+	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/re-tofl/tofl-gpt-chat/internal/bootstrap"
@@ -28,6 +34,10 @@ type TaskUsecase interface {
 	RateTheory(ctx context.Context, message *tgbotapi.Message) error
 }
 
+type SearchUsecase interface {
+	DatabaseToVector(ctx context.Context)
+}
+
 type Handler struct {
 	cfg        *bootstrap.Config
 	log        *zap.SugaredLogger
@@ -37,10 +47,14 @@ type Handler struct {
 	taskUC     TaskUsecase
 	mu         sync.Mutex
 	userStates map[int64]int
+	mongo      *adapters.AdapterMongo
+	achs       map[int64]domain.Achievement
+	postgres   *adapters.AdapterPG
+	searchUC   SearchUsecase
 }
 
 func NewHandler(cfg *bootstrap.Config, log *zap.SugaredLogger,
-	o OpenAiUsecase, s SpeechUsecase, t TaskUsecase) *Handler {
+	o OpenAiUsecase, s SpeechUsecase, t TaskUsecase, m *adapters.AdapterMongo, p *adapters.AdapterPG, search SearchUsecase) *Handler {
 	return &Handler{
 		cfg:        cfg,
 		log:        log,
@@ -48,6 +62,10 @@ func NewHandler(cfg *bootstrap.Config, log *zap.SugaredLogger,
 		speechUC:   s,
 		taskUC:     t,
 		userStates: make(map[int64]int),
+		mongo:      m,
+		achs:       CreateAchMap(),
+		postgres:   p,
+		searchUC:   search,
 	}
 }
 
@@ -143,8 +161,9 @@ func (h *Handler) handleVoice(ctx context.Context, message *tgbotapi.Message, bo
 	filePath, err := h.SaveAndDownloadVoice(file.FilePath, file.FileID)
 	textFromSpeech := h.speechUC.ConvertSpeechToText(ctx, filePath)
 
-	reply := tgbotapi.NewMessage(message.Chat.ID, textFromSpeech)
-	h.Send(reply)
+	message.Text = textFromSpeech
+
+	h.handleGptTextMessage(ctx, message)
 }
 
 func (h *Handler) SaveAndDownloadVoice(tgFilePath string, fileName string) (string, error) {
@@ -171,6 +190,26 @@ func (h *Handler) SaveAndDownloadVoice(tgFilePath string, fileName string) (stri
 	return filePath, nil
 }
 func (h *Handler) handleGptTextMessage(ctx context.Context, message *tgbotapi.Message) {
+	if CheckUserExists(ctx, message.Chat.ID, h.mongo.Database) {
+		AddUserReqIntoMongo(ctx, message.Chat.ID, h.mongo.Database)
+		fmt.Println("Пользователь существует, выполняем обновление")
+	} else {
+		fmt.Println("Пользователь не найден, выполняем вставку")
+		AddUserReqIntoMongo(ctx, message.Chat.ID, h.mongo.Database)
+	}
+
+	countOfReq := CheckCountOfReq(ctx, message.Chat.ID, h.mongo.Database)
+	if ach, exists := h.achs[countOfReq]; exists {
+		InsertAchIntoMongo(ctx, ach, message.Chat.ID, h.mongo.Database)
+		achtext := fmt.Sprintf("🎉 Вы забрали новую ачивку! 🎉\n\n🏆 *%s*\n\n📜 %s\n\n⭐ Оценка вашего гигачадства: *%d*",
+			ach.Title, ach.Desc, ach.Grade)
+
+		achReply := tgbotapi.NewMessage(message.Chat.ID, achtext)
+		achReply.ParseMode = "Markdown" // Используем Markdown для форматирования
+
+		h.Send(achReply)
+	}
+
 	gptResponse := h.openAiUC.SendToGpt(ctx, message)
 	reply := tgbotapi.NewMessage(message.Chat.ID, gptResponse)
 	h.Send(reply)
@@ -266,10 +305,120 @@ func (h *Handler) processCommand(ctx context.Context, message *tgbotapi.Message)
 	case "developers":
 		reply.Text = "тут будут контакты разработчиков"
 		h.Send(reply)
+
+	case "createMatrix":
+		h.searchUC.DatabaseToVector(ctx)
+		///////
+
 	default:
 		reply.Text = "Неизвестная команда"
 		h.Send(reply)
 	}
 }
 
-var userStates = make(map[int64]string)
+func (h *Handler) HandleCreateMatrix() {
+
+}
+
+func InsertAchIntoMongo(ctx context.Context, ach interface{}, chatId int64, db *mongo.Database) {
+	collection := db.Collection("user_achievement")
+	filter := map[string]interface{}{"chat_id": chatId}
+	update := map[string]interface{}{
+		"$push": map[string]interface{}{
+			"Achivments": ach,
+		},
+	}
+
+	updateResult, err := collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		log.Fatalf("Ошибка обновления документа: %v", err)
+	}
+
+	if updateResult.MatchedCount == 0 {
+		newDoc := map[string]interface{}{
+			"chat_id":    chatId,
+			"Achivments": []interface{}{ach},
+		}
+		insertResult, err := collection.InsertOne(ctx, newDoc)
+		if err != nil {
+			log.Fatalf("Ошибка вставки нового документа: %v", err)
+		}
+		fmt.Printf("Новый документ вставлен с ID: %v\n", insertResult.InsertedID)
+	} else {
+		fmt.Printf("Достижение добавлено для chatId: %v\n", chatId)
+	}
+}
+
+func AddUserReqIntoMongo(ctx context.Context, chatId int64, db *mongo.Database) {
+	fmt.Println("in mongo")
+	collection := db.Collection("user_achievement")
+	filter := bson.M{"chat_id": chatId}
+	update := bson.M{
+		"$inc": bson.M{
+			"count_of_req": 1,
+		},
+	}
+
+	// Настройка опций с upsert: true
+	opts := options.Update().SetUpsert(true)
+
+	result, err := collection.UpdateOne(ctx, filter, update, opts)
+	if err != nil {
+		log.Fatalf("Ошибка обновления документа: %v", err)
+	}
+
+	if result.MatchedCount > 0 {
+		fmt.Printf("Обновлено %d документа(ов)\n", result.ModifiedCount)
+	} else if result.UpsertedCount > 0 {
+		fmt.Printf("Вставлен новый документ с _id: %v\n", result.UpsertedID)
+	} else {
+		fmt.Println("Никаких изменений не было внесено")
+	}
+}
+
+func CheckUserExists(ctx context.Context, chatId int64, db *mongo.Database) bool {
+	collection := db.Collection("user_achievement")
+	filter := bson.M{"chat_id": chatId}
+
+	count, err := collection.CountDocuments(ctx, filter)
+	if err != nil {
+		log.Fatalf("Ошибка при подсчёте документов: %v", err)
+	}
+
+	return count > 0
+}
+
+func CheckCountOfReq(ctx context.Context, chatId int64, db *mongo.Database) int64 {
+	collection := db.Collection("user_achievement")
+	filter := map[string]interface{}{"chat_id": chatId}
+	var result struct {
+		CountOfReq int64 `bson:"count_of_req"`
+	}
+	err := collection.FindOne(ctx, filter).Decode(&result)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return 0
+		}
+		log.Fatalf("Ошибка при поиске документа: %v", err)
+	}
+
+	return result.CountOfReq
+}
+
+func CreateAchMap() map[int64]domain.Achievement {
+	achs := map[int64]domain.Achievement{}
+
+	ach1 := domain.Achievement{Title: "пробник", Desc: "ты либо гига чад, либо не на 5 семестре", Grade: 1}
+	achs[5] = ach1
+
+	ach2 := domain.Achievement{Title: "Начинаешь познавать ТФЯ!", Desc: "На правильном пути, стремишься познать!", Grade: 2}
+	achs[10] = ach2
+
+	ach3 := domain.Achievement{Title: "Тигр ТФЯ", Desc: "Какой то крутой тип, вероятность РК на максимум стремиться к единице", Grade: 3}
+	achs[20] = ach3
+
+	ach4 := domain.Achievement{Title: "Охранный пёс в Переяславле", Desc: "Тут без комментариев", Grade: 4}
+	achs[50] = ach4
+
+	return achs
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+
 	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 )
 
