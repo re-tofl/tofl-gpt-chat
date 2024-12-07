@@ -244,7 +244,7 @@ func (h *Handler) handleMessage(ctx context.Context, message *tgbotapi.Message) 
 			h.log.Errorw("h.Theory", zap.Error(err))
 			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Произошла ошибка"))
 		} else {
-			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Напишите +, если ответ правильный, и -, если неправильный"))
+			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Оцените ответ от 1 до 10"))
 
 			h.mu.Lock()
 			h.userStates[message.Chat.ID] = domain.TheoryRateState

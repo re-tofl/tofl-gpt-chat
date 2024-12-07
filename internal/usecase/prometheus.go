@@ -6,8 +6,7 @@ type PrometheusMetrics struct {
 	RegisteredUserCount prometheus.Gauge
 	Hits                *prometheus.CounterVec
 	Errors              prometheus.Counter
-	GoodResponsesLLM    prometheus.Counter
-	BadResponsesLLM     prometheus.Counter
+	ResponseRating      *prometheus.HistogramVec
 }
 
 func NewPrometheusMetrics() *PrometheusMetrics {
@@ -32,27 +31,21 @@ func NewPrometheusMetrics() *PrometheusMetrics {
 		},
 	)
 
-	goodResponsesLLM := prometheus.NewCounter(
-		prometheus.CounterOpts{
-			Name: "llm_responses",
-			Help: "Number of good responses from LLM.",
+	responseRating := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "response_rating",
+			Help:    "Histogram of user ratings for the response (1 to 10).",
+			Buckets: prometheus.LinearBuckets(1, 1, 10),
 		},
+		[]string{"username"},
 	)
 
-	badResponsesLLM := prometheus.NewCounter(
-		prometheus.CounterOpts{
-			Name: "llm_errors",
-			Help: "Number of bad responses from LLM.",
-		},
-	)
-
-	prometheus.MustRegister(activeSessionsCount, hits, errorsInProject, goodResponsesLLM, badResponsesLLM)
+	prometheus.MustRegister(activeSessionsCount, hits, errorsInProject, responseRating)
 
 	return &PrometheusMetrics{
 		RegisteredUserCount: activeSessionsCount,
 		Hits:                hits,
 		Errors:              errorsInProject,
-		GoodResponsesLLM:    goodResponsesLLM,
-		BadResponsesLLM:     badResponsesLLM,
+		ResponseRating:      responseRating,
 	}
 }

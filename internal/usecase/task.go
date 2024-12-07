@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
@@ -18,15 +19,11 @@ func NewTaskUsecase() *TaskUsecase {
 }
 
 func (t *TaskUsecase) RateTheory(ctx context.Context, message *tgbotapi.Message) error {
-	if message.Text == "+" {
-		t.metrics.GoodResponsesLLM.Inc()
-		return nil
+	ratingValue, err := strconv.ParseFloat(message.Text, 64)
+	if err != nil || ratingValue < 1 || ratingValue > 10 {
+		return fmt.Errorf("неверное значение: %s. Должно быть от 1 до 10", message.Text)
 	}
 
-	if message.Text == "-" {
-		t.metrics.BadResponsesLLM.Inc()
-		return nil
-	}
-
-	return fmt.Errorf("неверный формат")
+	t.metrics.ResponseRating.WithLabelValues(message.From.UserName).Observe(ratingValue)
+	return nil
 }
