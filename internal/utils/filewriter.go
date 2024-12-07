@@ -1,0 +1,34 @@
+package utils
+
+import (
+	"fmt"
+	"os"
+	"sync"
+)
+
+type FileWriter struct {
+	mu   sync.Mutex
+	file *os.File
+}
+
+func InitFileWriter(name string) (*FileWriter, error) {
+	file, err := os.OpenFile(name, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка при открытии файла: %w", err)
+	}
+	return &FileWriter{
+		file: file,
+	}, nil
+}
+
+func (fw *FileWriter) Close() error {
+	fw.mu.Lock()
+	defer fw.mu.Unlock()
+	return fw.file.Close()
+}
+
+func (fw *FileWriter) Write(data []byte) (int, error) {
+	fw.mu.Lock()
+	defer fw.mu.Unlock()
+	return fw.file.Write(data)
+}
