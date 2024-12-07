@@ -31,7 +31,7 @@ type SpeechUsecase interface {
 }
 
 type TaskUsecase interface {
-	RateTheory(ctx context.Context, message *tgbotapi.Message) error
+	RateTheory(ctx context.Context, message *tgbotapi.Message, contextID string) error
 }
 
 type SearchUsecase interface {
@@ -57,15 +57,16 @@ type Handler struct {
 func NewHandler(cfg *bootstrap.Config, log *zap.SugaredLogger,
 	o OpenAiUsecase, s SpeechUsecase, t TaskUsecase, m *adapters.AdapterMongo, search SearchUsecase) *Handler {
 	return &Handler{
-		cfg:        cfg,
-		log:        log,
-		openAiUC:   o,
-		speechUC:   s,
-		taskUC:     t,
-		userStates: make(map[int64]int),
-		mongo:      m,
-		achs:       CreateAchMap(),
-		searchUC:   search,
+		cfg:            cfg,
+		log:            log,
+		openAiUC:       o,
+		speechUC:       s,
+		taskUC:         t,
+		userStates:     make(map[int64]int),
+		userContextIDs: make(map[int64]string),
+		mongo:          m,
+		achs:           CreateAchMap(),
+		searchUC:       search,
 	}
 }
 
