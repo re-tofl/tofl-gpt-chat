@@ -39,18 +39,19 @@ type SearchUsecase interface {
 }
 
 type Handler struct {
-	cfg        *bootstrap.Config
-	log        *zap.SugaredLogger
-	bot        *tgbotapi.BotAPI
-	openAiUC   OpenAiUsecase
-	speechUC   SpeechUsecase
-	taskUC     TaskUsecase
-	mu         sync.Mutex
-	userStates map[int64]int
-	mongo      *adapters.AdapterMongo
-	achs       map[int64]domain.Achievement
-	postgres   *adapters.AdapterPG
-	searchUC   SearchUsecase
+	cfg            *bootstrap.Config
+	log            *zap.SugaredLogger
+	bot            *tgbotapi.BotAPI
+	openAiUC       OpenAiUsecase
+	speechUC       SpeechUsecase
+	taskUC         TaskUsecase
+	mu             sync.Mutex
+	userStates     map[int64]int
+	userContextIDs map[int64]string
+	mongo          *adapters.AdapterMongo
+	achs           map[int64]domain.Achievement
+	postgres       *adapters.AdapterPG
+	searchUC       SearchUsecase
 }
 
 func NewHandler(cfg *bootstrap.Config, log *zap.SugaredLogger,

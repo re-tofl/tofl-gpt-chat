@@ -192,6 +192,10 @@ func (h *Handler) requestTheoryLLM(ctx context.Context, message *tgbotapi.Messag
 		return fmt.Errorf("json.NewDecoder: %w", err)
 	}
 
+	h.mu.Lock()
+	h.userContextIDs[message.Chat.ID] = dataLLM.ContextID
+	h.mu.Unlock()
+
 	h.Send(tgbotapi.NewMessage(message.Chat.ID, dataLLM.Response))
 	return nil
 }
