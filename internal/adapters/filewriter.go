@@ -27,9 +27,25 @@ func (fw *FileWriter) Close() error {
 	return fw.file.Close()
 }
 
+func (fw *FileWriter) Truncate() error {
+	fw.mu.Lock()
+	defer fw.mu.Unlock()
+	return fw.file.Truncate(0)
+}
+
 func (fw *FileWriter) Write(data []byte) (int, error) {
 	fw.mu.Lock()
 	defer fw.mu.Unlock()
+	return fw.file.Write(data)
+}
+
+func (fw *FileWriter) TruncateAndWrite(data []byte) (int, error) {
+	fw.mu.Lock()
+	defer fw.mu.Unlock()
+	err := fw.file.Truncate(0)
+	if err != nil {
+		return 0, err
+	}
 	return fw.file.Write(data)
 }
 

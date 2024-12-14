@@ -37,9 +37,9 @@ func (r *RatingRepository) SaveRating(ctx context.Context, rating domain.Rating)
 		return fmt.Errorf("json.Marshal: %w", err)
 	}
 
-	_, err = r.fw.Write(b)
+	_, err = r.fw.TruncateAndWrite(b)
 	if err != nil {
-		return fmt.Errorf("r.fw.Write: %w", err)
+		return fmt.Errorf("r.fw.TruncateAndWrite: %w", err)
 	}
 
 	return nil
