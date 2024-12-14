@@ -39,34 +39,34 @@ type SearchUsecase interface {
 }
 
 type Handler struct {
-	cfg            *bootstrap.Config
-	log            *zap.SugaredLogger
-	bot            *tgbotapi.BotAPI
-	openAiUC       OpenAiUsecase
-	speechUC       SpeechUsecase
-	taskUC         TaskUsecase
-	mu             sync.Mutex
-	userStates     map[int64]int
-	userContextIDs map[int64]string
-	mongo          *adapters.AdapterMongo
-	achs           map[int64]domain.Achievement
-	postgres       *adapters.AdapterPG
-	searchUC       SearchUsecase
+	cfg          *bootstrap.Config
+	log          *zap.SugaredLogger
+	bot          *tgbotapi.BotAPI
+	openAiUC     OpenAiUsecase
+	speechUC     SpeechUsecase
+	taskUC       TaskUsecase
+	mu           sync.Mutex
+	userStates   map[int64]int
+	userContexts map[int64]string
+	mongo        *adapters.AdapterMongo
+	achs         map[int64]domain.Achievement
+	postgres     *adapters.AdapterPG
+	searchUC     SearchUsecase
 }
 
 func NewHandler(cfg *bootstrap.Config, log *zap.SugaredLogger,
 	o OpenAiUsecase, s SpeechUsecase, t TaskUsecase, m *adapters.AdapterMongo, search SearchUsecase) *Handler {
 	return &Handler{
-		cfg:            cfg,
-		log:            log,
-		openAiUC:       o,
-		speechUC:       s,
-		taskUC:         t,
-		userStates:     make(map[int64]int),
-		userContextIDs: make(map[int64]string),
-		mongo:          m,
-		achs:           CreateAchMap(),
-		searchUC:       search,
+		cfg:          cfg,
+		log:          log,
+		openAiUC:     o,
+		speechUC:     s,
+		taskUC:       t,
+		userStates:   make(map[int64]int),
+		userContexts: make(map[int64]string),
+		mongo:        m,
+		achs:         CreateAchMap(),
+		searchUC:     search,
 	}
 }
 

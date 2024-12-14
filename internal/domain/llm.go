@@ -6,6 +6,6 @@ type LLMRequest struct {
 }
 
 type LLMTheoryResponse struct {
-	Response  string `json:"response"`
-	ContextID string `json:"context_id"`
+	Response string `json:"response"`
+	Context  string `json:"context"`
 }
