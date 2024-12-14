@@ -7,7 +7,7 @@ import (
 )
 
 type FileWriter struct {
-	mu   sync.Mutex
+	mu   sync.RWMutex
 	file *os.File
 }
 
@@ -31,4 +31,10 @@ func (fw *FileWriter) Write(data []byte) (int, error) {
 	fw.mu.Lock()
 	defer fw.mu.Unlock()
 	return fw.file.Write(data)
+}
+
+func (fw *FileWriter) Read() ([]byte, error) {
+	fw.mu.RLock()
+	defer fw.mu.RUnlock()
+	return os.ReadFile(fw.file.Name())
 }
