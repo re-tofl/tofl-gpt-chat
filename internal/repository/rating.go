@@ -30,10 +30,7 @@ func (r *RatingRepository) SaveRating(ctx context.Context, rating domain.Rating)
 		ratings = make([]domain.Rating, 0)
 	}
 
-	ratings = append(ratings, domain.Rating{
-		ContextID: rating.ContextID,
-		Rating:    rating.Rating,
-	})
+	ratings = append(ratings, rating)
 
 	b, err := json.Marshal(ratings)
 	if err != nil {

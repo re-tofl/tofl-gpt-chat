@@ -33,7 +33,8 @@ func (t *TaskUsecase) RateTheory(ctx context.Context, message *tgbotapi.Message,
 
 	t.metrics.ResponseRating.WithLabelValues(message.From.UserName).Observe(ratingValue)
 	return t.ratingRepo.SaveRating(ctx, domain.Rating{
-		ContextID: contextID,
-		Rating:    int(ratingValue),
+		ChatID:  message.Chat.ID,
+		Context: contextID,
+		Rating:  int(ratingValue),
 	})
 }
