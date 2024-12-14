@@ -22,6 +22,7 @@ type PollEntrypoint struct {
 	Config *bootstrap.Config
 	server *http.Server
 	tgbot  *telegram.Handler
+	fw     *adapters.FileWriter
 }
 
 func (e *PollEntrypoint) Init(ctx context.Context) error {
@@ -48,6 +49,7 @@ func (e *PollEntrypoint) Init(ctx context.Context) error {
 		return fmt.Errorf("dg.GetFileWriter: %w", err)
 	}
 
+	e.fw = fw
 	ratingRepo := repository.NewRatingRepository(fw)
 
 	speechUC := usecase.NewSpeechUsecase(speechRepo)
@@ -88,5 +90,13 @@ func (e *PollEntrypoint) Run(ctx context.Context) error {
 }
 
 func (e *PollEntrypoint) Close() error {
-	return e.server.Close()
+	err := e.server.Close()
+	if err != nil {
+		return fmt.Errorf("e.server.Close: %w", err)
+	}
+	err = e.fw.Close()
+	if err != nil {
+		return fmt.Errorf("e.fw.Close: %w", err)
+	}
+	return nil
 }

@@ -12,7 +12,7 @@ type FileWriter struct {
 }
 
 func InitFileWriter(name string) (*FileWriter, error) {
-	file, err := os.OpenFile(name, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile(name, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка при открытии файла: %w", err)
 	}
@@ -27,12 +27,6 @@ func (fw *FileWriter) Close() error {
 	return fw.file.Close()
 }
 
-func (fw *FileWriter) Truncate() error {
-	fw.mu.Lock()
-	defer fw.mu.Unlock()
-	return fw.file.Truncate(0)
-}
-
 func (fw *FileWriter) Write(data []byte) (int, error) {
 	fw.mu.Lock()
 	defer fw.mu.Unlock()
@@ -42,11 +36,7 @@ func (fw *FileWriter) Write(data []byte) (int, error) {
 func (fw *FileWriter) TruncateAndWrite(data []byte) (int, error) {
 	fw.mu.Lock()
 	defer fw.mu.Unlock()
-	err := fw.file.Truncate(0)
-	if err != nil {
-		return 0, err
-	}
-	return fw.file.Write(data)
+	return fw.file.WriteAt(data, 0)
 }
 
 func (fw *FileWriter) Read() ([]byte, error) {
