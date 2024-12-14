@@ -43,9 +43,16 @@ func (e *PollEntrypoint) Init(ctx context.Context) error {
 	openAiRepo := repository.NewOpenaiStorage(logger, e.Config)
 	speechRepo := repository.NewSpeechStorage(logger, e.Config)
 
+	fw, err := dg.GetFileWriter("rating.json")
+	if err != nil {
+		return fmt.Errorf("dg.GetFileWriter: %w", err)
+	}
+
+	ratingRepo := repository.NewRatingRepository(fw)
+
 	speechUC := usecase.NewSpeechUsecase(speechRepo)
 	openAiUC := usecase.NewOpenAiUseCase(openAiRepo)
-	taskUC := usecase.NewTaskUsecase()
+	taskUC := usecase.NewTaskUsecase(ratingRepo)
 
 	mongoAdapter := adapters.NewAdapterMongo(e.Config)
 	//postgresAdapter := adapters.NewAdapterPG(e.Config)
