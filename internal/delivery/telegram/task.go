@@ -193,7 +193,7 @@ func (h *Handler) requestTheoryLLM(ctx context.Context, message *tgbotapi.Messag
 	}
 
 	h.mu.Lock()
-	h.userContexts[message.Chat.ID] = dataLLM.Context
+	h.userContextIDs[message.Chat.ID] = dataLLM.ContextID
 	h.mu.Unlock()
 
 	h.Send(tgbotapi.NewMessage(message.Chat.ID, dataLLM.Response))
@@ -211,6 +211,6 @@ func (h *Handler) Theory(ctx context.Context, message *tgbotapi.Message) error {
 }
 
 func (h *Handler) RateTheory(ctx context.Context, message *tgbotapi.Message) error {
-	contextID := h.userContexts[message.Chat.ID]
+	contextID := h.userContextIDs[message.Chat.ID]
 	return h.taskUC.RateTheory(ctx, message, contextID)
 }
