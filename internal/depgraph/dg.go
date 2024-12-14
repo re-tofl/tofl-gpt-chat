@@ -1,19 +1,19 @@
 package depgraph
 
 import (
-	"github.com/re-tofl/tofl-gpt-chat/internal/utils"
+	"github.com/re-tofl/tofl-gpt-chat/internal/adapters"
 	"go.uber.org/zap"
 )
 
 type DepGraph struct {
 	logger      *dgEntity[*zap.SugaredLogger]
-	fileWriters map[string]*dgEntity[*utils.FileWriter]
+	fileWriters map[string]*dgEntity[*adapters.FileWriter]
 }
 
 func NewDepGraph() *DepGraph {
 	return &DepGraph{
 		logger:      &dgEntity[*zap.SugaredLogger]{},
-		fileWriters: make(map[string]*dgEntity[*utils.FileWriter]),
+		fileWriters: make(map[string]*dgEntity[*adapters.FileWriter]),
 	}
 }
 
@@ -24,13 +24,13 @@ func (d *DepGraph) GetLogger() (*zap.SugaredLogger, error) {
 	})
 }
 
-func (d *DepGraph) GetFileWriter(name string) (*utils.FileWriter, error) {
+func (d *DepGraph) GetFileWriter(name string) (*adapters.FileWriter, error) {
 	fw, ok := d.fileWriters[name]
 	if !ok {
-		fw = &dgEntity[*utils.FileWriter]{}
+		fw = &dgEntity[*adapters.FileWriter]{}
 		d.fileWriters[name] = fw
 	}
-	return fw.get(func() (*utils.FileWriter, error) {
-		return utils.InitFileWriter(name)
+	return fw.get(func() (*adapters.FileWriter, error) {
+		return adapters.InitFileWriter(name)
 	})
 }

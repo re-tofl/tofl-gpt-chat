@@ -3,18 +3,25 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 	"strconv"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-type TaskUsecase struct {
-	metrics *PrometheusMetrics
+type RatingRepository interface {
+	SaveRating(ctx context.Context, rating domain.Rating) error
 }
 
-func NewTaskUsecase() *TaskUsecase {
+type TaskUsecase struct {
+	metrics    *PrometheusMetrics
+	ratingRepo RatingRepository
+}
+
+func NewTaskUsecase(ratingRepo RatingRepository) *TaskUsecase {
 	return &TaskUsecase{
-		metrics: NewPrometheusMetrics(),
+		metrics:    NewPrometheusMetrics(),
+		ratingRepo: ratingRepo,
 	}
 }
 
@@ -25,5 +32,8 @@ func (t *TaskUsecase) RateTheory(ctx context.Context, message *tgbotapi.Message,
 	}
 
 	t.metrics.ResponseRating.WithLabelValues(message.From.UserName).Observe(ratingValue)
-	return nil
+	return t.ratingRepo.SaveRating(ctx, domain.Rating{
+		ContextID: contextID,
+		Rating:    int(ratingValue),
+	})
 }
