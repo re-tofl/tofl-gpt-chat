@@ -41,9 +41,8 @@ func (h *Handler) requestParser(ctx context.Context, message *tgbotapi.Message) 
 
 	if resp.StatusCode != http.StatusOK {
 		h.log.Errorw("resp.StatusCode", "statusCode", resp.StatusCode, zap.Error(err))
-		h.log.Error(resp.Body)
 		if resp.StatusCode != http.StatusBadRequest {
-			return nil, fmt.Errorf("resp.StatusCode: %w", err)
+			return nil, fmt.Errorf("resp.StatusCode Parser: %v", resp.StatusCode)
 		}
 
 		var data domain.ParserErrorResponse
@@ -70,7 +69,7 @@ func (h *Handler) requestParser(ctx context.Context, message *tgbotapi.Message) 
 			}
 		}
 
-		return nil, fmt.Errorf("resp.StatusCode: %w", err)
+		return nil, fmt.Errorf("resp.StatusCode Parser: %v", resp.StatusCode)
 	}
 
 	var parserResp domain.ParserResponse
@@ -114,7 +113,7 @@ func (h *Handler) requestFormal(ctx context.Context, message *tgbotapi.Message, 
 
 	if resp.StatusCode != http.StatusOK {
 		h.log.Errorw("resp.StatusCode", "statusCode", resp.StatusCode, zap.Error(err))
-		return fmt.Errorf("resp.StatusCode: %w", err)
+		return fmt.Errorf("resp.StatusCode from Formal %v", resp.StatusCode)
 	}
 
 	var data domain.FormalResponse
@@ -189,8 +188,8 @@ func (h *Handler) requestTheoryLLM(ctx context.Context, message *tgbotapi.Messag
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		h.log.Errorw("resp.StatusCode", zap.Error(err))
-		return fmt.Errorf("resp.StatusCode: %w", err)
+		h.log.Errorw("resp.StatusCode", "statusCode", resp.StatusCode, zap.Error(err))
+		return fmt.Errorf("resp.StatusCode from LLM %v", resp.StatusCode)
 	}
 
 	var dataLLM domain.LLMTheoryResponse
@@ -243,8 +242,8 @@ func (h *Handler) requestProblemLLM(ctx context.Context, message *tgbotapi.Messa
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		h.log.Errorw("resp.StatusCode", zap.Error(err))
-		return domain.ParserRequest{}, fmt.Errorf("resp.StatusCode: %w", err)
+		h.log.Errorw("resp.StatusCode", "statusCode", resp.StatusCode, zap.Error(err))
+		return domain.ParserRequest{}, fmt.Errorf("resp.StatusCode from LLM %v", resp.StatusCode)
 	}
 
 	var parserReq domain.ParserRequest

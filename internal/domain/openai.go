@@ -73,6 +73,10 @@ type OpenAiImageRequest struct {
 	Prompt string  `json:"prompt"`
 }
 
+type OpenAiTextRequest struct {
+	Prompt string `json:"prompt"`
+}
+
 type Bases struct {
 	Base64 string `json:"image_base64"`
 }
