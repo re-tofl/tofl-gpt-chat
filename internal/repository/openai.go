@@ -22,10 +22,9 @@ import (
 )
 
 type OpenaiStorage struct {
-	logger      *zap.SugaredLogger
-	cfg         *bootstrap.Config
-	fileIds     []string
-	assistantId string
+	logger  *zap.SugaredLogger
+	cfg     *bootstrap.Config
+	fileIds []string
 }
 
 func NewOpenaiStorage(logger *zap.SugaredLogger, cfg *bootstrap.Config) *OpenaiStorage {
@@ -45,13 +44,15 @@ func (open *OpenaiStorage) ProcessFilesAndSendRequest(message *tgbotapi.Message,
 
 	for _, file := range files {
 		fileExt := getFileExtension(file.Path)
+		fmt.Println(fileExt)
 		var err error
 		var convertedFiles []string
 
 		switch fileExt {
-		case "pdf":
+		case ".pdf":
 			convertedFiles, err = convertPDFToImages(file.Path)
-		case "jpg", "jpeg":
+			fmt.Println(convertedFiles)
+		case ".jpg", ".jpeg":
 			convertedFiles, err = findJPGFiles("upload/*.jpg")
 		default:
 			continue
@@ -83,8 +84,12 @@ func (open *OpenaiStorage) ProcessFilesAndSendRequest(message *tgbotapi.Message,
 	return fileResp
 }
 
-func getFileExtension(filePath string) string {
-	return strings.ToLower(filepath.Ext(filePath)[1:])
+func getFileExtension(fileName string) string {
+	ext := filepath.Ext(fileName)
+	if ext == "" {
+		return ""
+	}
+	return ext // Возвращает, например, ".pdf"
 }
 
 func findJPGFiles(pattern string) ([]string, error) {
@@ -191,13 +196,16 @@ func (open *OpenaiStorage) savePhotoFiles(photos *[]tgbotapi.PhotoSize, bot *tgb
 }
 
 func (open *OpenaiStorage) saveDocumentFile(document *tgbotapi.Document, bot *tgbotapi.BotAPI) (domain.File, error) {
+	fmt.Println("here")
 	file, err := bot.GetFile(tgbotapi.FileConfig{FileID: document.FileID})
 	if err != nil {
 		return domain.File{}, fmt.Errorf("ошибка при получении документа: %w", err)
 	}
 
+	// Получаем расширение файла с точкой
 	fileExtension := getFileExtension(document.FileName)
 	if fileExtension == "" {
+		fmt.Println("has no ext", document.FileName)
 		fileExtension = filepath.Ext(file.FilePath)
 	}
 
@@ -205,7 +213,11 @@ func (open *OpenaiStorage) saveDocumentFile(document *tgbotapi.Document, bot *tg
 		fileExtension = ".txt"
 	}
 
-	fileName := fmt.Sprintf("%s_%d%s", document.FileName, time.Now().UnixNano(), fileExtension)
+	// Отделяем базовое имя от расширения
+	baseName := strings.TrimSuffix(document.FileName, filepath.Ext(document.FileName))
+	// Формируем новое имя файла без дублирования расширения
+	fileName := fmt.Sprintf("%s_%d%s", baseName, time.Now().UnixNano(), fileExtension)
+
 	filePath, err := open.downloadAndSaveFile(file, fileName)
 	if err != nil {
 		return domain.File{}, err

@@ -11,7 +11,7 @@ RUNFLAGS := --config .env
 all: build
 init: mod-tidy install-swag install-gci install-lint
 
-run: lint build
+run: build
 	@echo "Starting app..."
 	./bin/$(NAME) $(RUNFLAGS) poll
 

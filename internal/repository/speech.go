@@ -10,9 +10,10 @@ import (
 	"os"
 	"os/exec"
 
+	"go.uber.org/zap"
+
 	"github.com/re-tofl/tofl-gpt-chat/internal/bootstrap"
 	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
-	"go.uber.org/zap"
 )
 
 type SpeechStorage struct {
