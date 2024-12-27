@@ -8,18 +8,24 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/re-tofl/tofl-gpt-chat/internal/bootstrap"
+	task2 "github.com/re-tofl/tofl-gpt-chat/internal/delivery/openai"
+	"github.com/re-tofl/tofl-gpt-chat/internal/delivery/task"
 )
 
 type Handler struct {
-	cfg *bootstrap.Config
-	log *zap.SugaredLogger
-	bot *tgbotapi.BotAPI
+	cfg         *bootstrap.Config
+	log         *zap.SugaredLogger
+	bot         *tgbotapi.BotAPI
+	taskHandler *task.THandler
+	openHandler *task2.OpenHandler
 }
 
-func NewHandler(cfg *bootstrap.Config, log *zap.SugaredLogger) *Handler {
+func NewHandler(cfg *bootstrap.Config, log *zap.SugaredLogger, t *task.THandler, o *task2.OpenHandler) *Handler {
 	return &Handler{
-		cfg: cfg,
-		log: log,
+		cfg:         cfg,
+		log:         log,
+		taskHandler: t,
+		openHandler: o,
 	}
 }
 
@@ -68,13 +74,32 @@ func (h *Handler) processUpdate(ctx context.Context, update *tgbotapi.Update) {
 		return
 	}
 
+	messageText := update.Message.Text
+	if messageText == "" {
+		messageText = update.Message.Caption
+		update.Message.Text = messageText
+	}
+
 	h.log.Infow("received message",
 		"username", update.Message.From.UserName,
-		"message", update.Message.Text)
+		"message", messageText)
+
+	if update.Message.Photo != nil || update.Message.Document != nil {
+		h.log.Infow("received photo or file from ",
+			"username", update.Message.From.UserName)
+
+		h.handleProblemWithImages(ctx, update.Message)
+		return
+	}
 
 	if update.Message.IsCommand() {
 		h.processCommand(ctx, update.Message)
 	}
+}
+
+func (h *Handler) handleProblemWithImages(ctx context.Context, message *tgbotapi.Message) {
+	gptFileResponse := h.openHandler.SaveMediaAndSendToAi(ctx, message, h.bot)
+	fmt.Println(gptFileResponse)
 }
 
 func (h *Handler) processCommand(ctx context.Context, message *tgbotapi.Message) {
@@ -86,6 +111,11 @@ func (h *Handler) processCommand(ctx context.Context, message *tgbotapi.Message)
 		h.Send(reply)
 	case "problem":
 		reply.Text = "Ответ на задачу"
+		h.Send(reply)
+	case "imageProblem":
+		reply.Text = "Ответ на задачу с фотографиями"
+		h.handleProblemWithImages(ctx, message)
+
 		h.Send(reply)
 	case "developers":
 		reply.Text = "тут будут контакты разработчиков"
