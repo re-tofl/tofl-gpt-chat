@@ -8,15 +8,13 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/re-tofl/tofl-gpt-chat/internal/adapters"
 	"go.uber.org/zap"
 
 	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 )
 
 type SearchStorage struct {
-	postgres *adapters.AdapterPG
-	logger   *zap.SugaredLogger
+	logger *zap.SugaredLogger
 }
 
 func NewSearchStorage(logger *zap.SugaredLogger) *SearchStorage {

@@ -5,7 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -88,7 +88,7 @@ func (ts *TaskStorage) SendToYandex(request TranslateRequest) (response Translat
 		ts.logger.Error(err)
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		ts.logger.Error(err)
 	}
