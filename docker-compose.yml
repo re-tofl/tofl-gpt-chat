@@ -1,20 +1,4 @@
 services:
-  postgres:
-    build:
-      context: .
-    image: postgres:16
-    container_name: pgvector-db
-    environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: vectors
-    ports:
-      - "5432:5432"
-    volumes:
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-
-
-
   mongodb:
     image: mongo:6.0
     container_name: mongodb_tofl
@@ -22,7 +6,6 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: Artem557
-
     ports:
       - "27017:27017"
     volumes:
@@ -30,8 +13,6 @@ services:
       - ./init.js:/docker-entrypoint-initdb.d/init.js:ro
     env_file:
       - .env
-
-
   prometheus:
     image: prom/prometheus:latest
     ports:
@@ -57,5 +38,4 @@ services:
 volumes:
   grafana_data:
   db-data:
-
   mongo_data:

@@ -41,8 +41,8 @@ func (h *Handler) requestParser(ctx context.Context, message *tgbotapi.Message) 
 
 	if resp.StatusCode != http.StatusOK {
 		h.log.Errorw("resp.StatusCode", "statusCode", resp.StatusCode, zap.Error(err))
+		h.log.Error(resp.Body)
 		if resp.StatusCode != http.StatusBadRequest {
-			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Произошла ошибка"))
 			return nil, fmt.Errorf("resp.StatusCode: %w", err)
 		}
 
@@ -135,6 +135,14 @@ func (h *Handler) requestFormal(ctx context.Context, message *tgbotapi.Message, 
 }
 
 func (h *Handler) Problem(ctx context.Context, message *tgbotapi.Message) error {
+	parserReq, err := h.requestProblemLLM(ctx, message)
+	if err != nil {
+		return err
+	}
+	h.log.Info("get from llm: interpret: \n", parserReq.Interpretation, "trs: \n", parserReq.TRS)
+
+	message.Text = parserReq.TRS + parserReq.Interpretation
+
 	resp, err := h.requestParser(ctx, message)
 	if err != nil {
 		return err
@@ -187,25 +195,81 @@ func (h *Handler) requestTheoryLLM(ctx context.Context, message *tgbotapi.Messag
 
 	var dataLLM domain.LLMTheoryResponse
 	err = json.NewDecoder(resp.Body).Decode(&dataLLM)
+	fmt.Println(resp.Body)
+
 	if err != nil {
 		h.log.Errorw("json.NewDecoder", zap.Error(err))
 		return fmt.Errorf("json.NewDecoder: %w", err)
 	}
 
-	h.Send(tgbotapi.NewMessage(message.Chat.ID, dataLLM.Result))
+	h.mu.Lock()
+	h.userContextIDs[message.Chat.ID] = dataLLM.ContextID
+	h.mu.Unlock()
+
+	h.Send(tgbotapi.NewMessage(message.Chat.ID, dataLLM.Response))
 	return nil
 }
 
+func (h *Handler) requestProblemLLM(ctx context.Context, message *tgbotapi.Message) (domain.ParserRequest, error) {
+	var data domain.LLMRequest
+	data.Prompt = message.Text
+	data.Type = 1
+
+	b, err := json.Marshal(data)
+	if err != nil {
+		h.log.Errorw("json.Marshal", zap.Error(err))
+		return domain.ParserRequest{}, fmt.Errorf("json.Marshal: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", h.cfg.LLMURL+"/process", bytes.NewBuffer(b))
+	if err != nil {
+		h.log.Errorw("http.NewRequest", zap.Error(err))
+		return domain.ParserRequest{}, fmt.Errorf("http.NewRequest: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		h.log.Errorw("client.Do", zap.Error(err))
+		return domain.ParserRequest{}, fmt.Errorf("client.Do: %w", err)
+	}
+
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			h.log.Errorw("resp.Body.Close", zap.Error(err))
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		h.log.Errorw("resp.StatusCode", zap.Error(err))
+		return domain.ParserRequest{}, fmt.Errorf("resp.StatusCode: %w", err)
+	}
+
+	var parserReq domain.ParserRequest
+	err = json.NewDecoder(resp.Body).Decode(&parserReq)
+	fmt.Println(resp.Body)
+
+	if err != nil {
+		h.log.Errorw("json.NewDecoder", zap.Error(err))
+		return domain.ParserRequest{}, fmt.Errorf("json.NewDecoder: %w", err)
+	}
+
+	return parserReq, nil
+}
+
 func (h *Handler) Theory(ctx context.Context, message *tgbotapi.Message) error {
-	h.handleGptTextMessage(ctx, message)
-	/*err := h.requestTheoryLLM(ctx, message)
+	//h.handleGptTextMessage(ctx, message)
+	err := h.requestTheoryLLM(ctx, message)
 	if err != nil {
 		return err
-	}*/
+	}
 
 	return nil
 }
 
 func (h *Handler) RateTheory(ctx context.Context, message *tgbotapi.Message) error {
-	return h.taskUC.RateTheory(ctx, message)
+	contextID := h.userContextIDs[message.Chat.ID]
+	return h.taskUC.RateTheory(ctx, message, contextID)
 }

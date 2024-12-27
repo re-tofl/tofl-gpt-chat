@@ -22,6 +22,7 @@ type PollEntrypoint struct {
 	Config *bootstrap.Config
 	server *http.Server
 	tgbot  *telegram.Handler
+	fw     *adapters.FileWriter
 }
 
 func (e *PollEntrypoint) Init(ctx context.Context) error {
@@ -43,12 +44,20 @@ func (e *PollEntrypoint) Init(ctx context.Context) error {
 	openAiRepo := repository.NewOpenaiStorage(logger, e.Config)
 	speechRepo := repository.NewSpeechStorage(logger, e.Config)
 
+	fw, err := dg.GetFileWriter("rating.json")
+	if err != nil {
+		return fmt.Errorf("dg.GetFileWriter: %w", err)
+	}
+
+	e.fw = fw
+	ratingRepo := repository.NewRatingRepository(fw)
+
 	speechUC := usecase.NewSpeechUsecase(speechRepo)
 	openAiUC := usecase.NewOpenAiUseCase(openAiRepo)
-	taskUC := usecase.NewTaskUsecase()
+	taskUC := usecase.NewTaskUsecase(ratingRepo)
 
 	mongoAdapter := adapters.NewAdapterMongo(e.Config)
-	postgresAdapter := adapters.NewAdapterPG(e.Config)
+	//postgresAdapter := adapters.NewAdapterPG(e.Config)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -57,14 +66,14 @@ func (e *PollEntrypoint) Init(ctx context.Context) error {
 		log.Fatalf("Не удалось инициализировать MongoAdapter: %v", err)
 	}
 
-	if err = postgresAdapter.Init(ctx); err != nil {
-		log.Fatalf("Не удалось инициализировать PostgresAdapter: %v", err)
-	}
+	//if err = postgresAdapter.Init(ctx); err != nil {
+	//	log.Fatalf("Не удалось инициализировать PostgresAdapter: %v", err)
+	//}
 
-	searchRepo := repository.NewSearchStorage(postgresAdapter, logger)
+	searchRepo := repository.NewSearchStorage(logger)
 	searchUC := usecase.NewSearchUseCase(searchRepo)
 
-	e.tgbot = telegram.NewHandler(e.Config, logger, openAiUC, speechUC, taskUC, mongoAdapter, postgresAdapter, searchUC)
+	e.tgbot = telegram.NewHandler(e.Config, logger, openAiUC, speechUC, taskUC, mongoAdapter, searchUC)
 
 	return nil
 }
@@ -81,5 +90,13 @@ func (e *PollEntrypoint) Run(ctx context.Context) error {
 }
 
 func (e *PollEntrypoint) Close() error {
-	return e.server.Close()
+	err := e.server.Close()
+	if err != nil {
+		return fmt.Errorf("e.server.Close: %w", err)
+	}
+	err = e.fw.Close()
+	if err != nil {
+		return fmt.Errorf("e.fw.Close: %w", err)
+	}
+	return nil
 }

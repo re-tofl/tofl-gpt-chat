@@ -3,30 +3,38 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
+	"strconv"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
+type RatingRepository interface {
+	SaveRating(ctx context.Context, rating domain.Rating) error
+}
+
 type TaskUsecase struct {
-	metrics *PrometheusMetrics
+	metrics    *PrometheusMetrics
+	ratingRepo RatingRepository
 }
 
-func NewTaskUsecase() *TaskUsecase {
+func NewTaskUsecase(ratingRepo RatingRepository) *TaskUsecase {
 	return &TaskUsecase{
-		metrics: NewPrometheusMetrics(),
+		metrics:    NewPrometheusMetrics(),
+		ratingRepo: ratingRepo,
 	}
 }
 
-func (t *TaskUsecase) RateTheory(ctx context.Context, message *tgbotapi.Message) error {
-	if message.Text == "+" {
-		t.metrics.GoodResponsesLLM.Inc()
-		return nil
+func (t *TaskUsecase) RateTheory(ctx context.Context, message *tgbotapi.Message, contextID int) error {
+	ratingValue, err := strconv.ParseFloat(message.Text, 64)
+	if err != nil || ratingValue < 1 || ratingValue > 10 {
+		return fmt.Errorf("неверное значение: %s. Должно быть от 1 до 10", message.Text)
 	}
 
-	if message.Text == "-" {
-		t.metrics.BadResponsesLLM.Inc()
-		return nil
-	}
-
-	return fmt.Errorf("неверный формат")
+	t.metrics.ResponseRating.WithLabelValues(message.From.UserName).Observe(ratingValue)
+	return t.ratingRepo.SaveRating(ctx, domain.Rating{
+		ChatID:    message.Chat.ID,
+		ContextID: contextID,
+		Rating:    int(ratingValue),
+	})
 }

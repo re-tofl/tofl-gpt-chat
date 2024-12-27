@@ -19,10 +19,9 @@ type SearchStorage struct {
 	logger   *zap.SugaredLogger
 }
 
-func NewSearchStorage(p *adapters.AdapterPG, logger *zap.SugaredLogger) *SearchStorage {
+func NewSearchStorage(logger *zap.SugaredLogger) *SearchStorage {
 	return &SearchStorage{
-		logger:   logger,
-		postgres: p,
+		logger: logger,
 	}
 }
 

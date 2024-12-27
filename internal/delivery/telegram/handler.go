@@ -31,7 +31,7 @@ type SpeechUsecase interface {
 }
 
 type TaskUsecase interface {
-	RateTheory(ctx context.Context, message *tgbotapi.Message) error
+	RateTheory(ctx context.Context, message *tgbotapi.Message, contextID int) error
 }
 
 type SearchUsecase interface {
@@ -39,33 +39,34 @@ type SearchUsecase interface {
 }
 
 type Handler struct {
-	cfg        *bootstrap.Config
-	log        *zap.SugaredLogger
-	bot        *tgbotapi.BotAPI
-	openAiUC   OpenAiUsecase
-	speechUC   SpeechUsecase
-	taskUC     TaskUsecase
-	mu         sync.Mutex
-	userStates map[int64]int
-	mongo      *adapters.AdapterMongo
-	achs       map[int64]domain.Achievement
-	postgres   *adapters.AdapterPG
-	searchUC   SearchUsecase
+	cfg            *bootstrap.Config
+	log            *zap.SugaredLogger
+	bot            *tgbotapi.BotAPI
+	openAiUC       OpenAiUsecase
+	speechUC       SpeechUsecase
+	taskUC         TaskUsecase
+	mu             sync.Mutex
+	userStates     map[int64]int
+	userContextIDs map[int64]int
+	mongo          *adapters.AdapterMongo
+	achs           map[int64]domain.Achievement
+	postgres       *adapters.AdapterPG
+	searchUC       SearchUsecase
 }
 
 func NewHandler(cfg *bootstrap.Config, log *zap.SugaredLogger,
-	o OpenAiUsecase, s SpeechUsecase, t TaskUsecase, m *adapters.AdapterMongo, p *adapters.AdapterPG, search SearchUsecase) *Handler {
+	o OpenAiUsecase, s SpeechUsecase, t TaskUsecase, m *adapters.AdapterMongo, search SearchUsecase) *Handler {
 	return &Handler{
-		cfg:        cfg,
-		log:        log,
-		openAiUC:   o,
-		speechUC:   s,
-		taskUC:     t,
-		userStates: make(map[int64]int),
-		mongo:      m,
-		achs:       CreateAchMap(),
-		postgres:   p,
-		searchUC:   search,
+		cfg:            cfg,
+		log:            log,
+		openAiUC:       o,
+		speechUC:       s,
+		taskUC:         t,
+		userStates:     make(map[int64]int),
+		userContextIDs: make(map[int64]int),
+		mongo:          m,
+		achs:           CreateAchMap(),
+		searchUC:       search,
 	}
 }
 
@@ -189,6 +190,7 @@ func (h *Handler) SaveAndDownloadVoice(tgFilePath string, fileName string) (stri
 
 	return filePath, nil
 }
+
 func (h *Handler) handleGptTextMessage(ctx context.Context, message *tgbotapi.Message) {
 	if CheckUserExists(ctx, message.Chat.ID, h.mongo.Database) {
 		AddUserReqIntoMongo(ctx, message.Chat.ID, h.mongo.Database)
@@ -211,7 +213,11 @@ func (h *Handler) handleGptTextMessage(ctx context.Context, message *tgbotapi.Me
 	}
 
 	gptResponse := h.openAiUC.SendToGpt(ctx, message)
+	message.Text = "Перепиши этот вопрос по английски, больше ничего не пиши. Это вопрос по теории формальных языков, учитывай это при переводе. Переведи вдумчиво!" + message.Text
+	translatedPrompt := h.openAiUC.SendToGpt(ctx, message)
 	reply := tgbotapi.NewMessage(message.Chat.ID, gptResponse)
+	h.Send(reply)
+	reply = tgbotapi.NewMessage(message.Chat.ID, translatedPrompt)
 	h.Send(reply)
 }
 
@@ -245,7 +251,7 @@ func (h *Handler) handleMessage(ctx context.Context, message *tgbotapi.Message) 
 			h.log.Errorw("h.Theory", zap.Error(err))
 			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Произошла ошибка"))
 		} else {
-			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Напишите +, если ответ правильный, и -, если неправильный"))
+			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Оцените ответ от 1 до 10"))
 
 			h.mu.Lock()
 			h.userStates[message.Chat.ID] = domain.TheoryRateState
@@ -259,6 +265,8 @@ func (h *Handler) handleMessage(ctx context.Context, message *tgbotapi.Message) 
 		if err != nil {
 			h.log.Errorw("h.RateTheory", zap.Error(err))
 			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Произошла ошибка: "+err.Error()))
+		} else {
+			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Спасибо за оценку!"))
 		}
 
 	default:
@@ -298,17 +306,10 @@ func (h *Handler) processCommand(ctx context.Context, message *tgbotapi.Message)
 		h.mu.Unlock()
 
 		h.Send(reply)
-	case "imageProblem":
-		reply.Text = "Ответ на задачу с фотографиями"
-		h.handleProblemWithImages(ctx, message)
-		h.Send(reply)
+
 	case "developers":
 		reply.Text = "тут будут контакты разработчиков"
 		h.Send(reply)
-
-	case "createMatrix":
-		h.searchUC.DatabaseToVector(ctx)
-		///////
 
 	default:
 		reply.Text = "Неизвестная команда"
@@ -430,7 +431,7 @@ func CreateAchMap() map[int64]domain.Achievement {
 	achs[20] = ach3
 
 	ach4 := domain.Achievement{
-		Title: "Охранный пёс в Переяславле",
+		Title: "Охранный пёс в Переславле В ИПС РАН",
 		Desc:  "Тут без комментариев",
 		Grade: "Сержант", // сержант
 	}
@@ -451,14 +452,14 @@ func CreateAchMap() map[int64]domain.Achievement {
 	achs[200] = ach6
 
 	ach7 := domain.Achievement{
-		Title: "Переяславский выживальщик",
+		Title: "Переславский выживальщик",
 		Desc:  "Выжил в суровых условиях Переяславля Залесского и сохранил учебу.",
 		Grade: "Майор", // майор
 	}
 	achs[500] = ach7
 
 	ach8 := domain.Achievement{
-		Title: "Легенда ИПС РАН и Переяславля",
+		Title: "Легенда ИПС РАН и Переславля",
 		Desc:  "Синхронизировал гены с Антониной Николаевной, освоил все тайны ТФЯ и стал бессмертным студентом!",
 		Grade: "Генерал", // генерал
 	}
