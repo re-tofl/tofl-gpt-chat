@@ -36,12 +36,12 @@ func NewOpenaiStorage(logger *zap.SugaredLogger, cfg *bootstrap.Config) *OpenaiS
 	}
 }
 
-type OpenAiResponse struct {
+type OpenAiFileResponse struct {
 	Response string `json:"response"`
 }
 
-func (open *OpenaiStorage) ProcessFilesAndSendRequest(message *tgbotapi.Message, files []domain.File) OpenAiResponse {
-	fileResp := OpenAiResponse{}
+func (open *OpenaiStorage) ProcessFilesAndSendRequest(message *tgbotapi.Message, files []domain.File) OpenAiFileResponse {
+	fileResp := OpenAiFileResponse{}
 
 	for _, file := range files {
 		fileExt := getFileExtension(file.Path)
@@ -68,7 +68,7 @@ func (open *OpenaiStorage) ProcessFilesAndSendRequest(message *tgbotapi.Message,
 			return fileResp
 		}
 
-		respBody, err := sendHTTPRequest("http://66.151.42.116:8085/image", jsonReq)
+		respBody, err := sendHTTPRequest("http://localhost:8085/image", jsonReq)
 		if err != nil {
 			open.logger.Error("Ошибка при отправке HTTP запроса:", err)
 			return fileResp
@@ -236,24 +236,4 @@ func (open *OpenaiStorage) downloadAndSaveFile(file tgbotapi.File, fileName stri
 	}
 
 	return filePath, nil
-}
-
-func (open *OpenaiStorage) SendAndGetAnswerFromGptNonFineTuned(message *tgbotapi.Message) string {
-	req := domain.OpenAiTextRequest{
-		Prompt: message.Text,
-	}
-	jsonReq, err := json.Marshal(req)
-	if err != nil {
-		open.logger.Error(err)
-	}
-	jsonResp, err := sendHTTPRequest("http://66.151.42.116:8085/text", jsonReq)
-	if err != nil {
-		open.logger.Error(err)
-	}
-	gptResp := OpenAiResponse{}
-	err = json.Unmarshal(jsonResp, &gptResp)
-	if err != nil {
-		open.logger.Error(err)
-	}
-	return gptResp.Response
 }

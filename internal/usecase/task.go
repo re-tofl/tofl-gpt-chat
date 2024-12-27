@@ -2,19 +2,30 @@ package usecase
 
 import (
 	"context"
-
-	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
+	"fmt"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-type TaskStore interface {
-	Translate(message *domain.Message) *domain.Message
-	Search(userMessage *domain.Message) *domain.Message
+type TaskUsecase struct {
+	metrics *PrometheusMetrics
 }
 
-func Translate(ctx context.Context, ts TaskStore, message *domain.Message) *domain.Message {
-	return ts.Translate(message)
+func NewTaskUsecase() *TaskUsecase {
+	return &TaskUsecase{
+		metrics: NewPrometheusMetrics(),
+	}
 }
 
-func Search(ctx context.Context, ts TaskStore, message *domain.Message) *domain.Message {
-	return ts.Search(message)
+func (t *TaskUsecase) RateTheory(ctx context.Context, message *tgbotapi.Message) error {
+	if message.Text == "+" {
+		t.metrics.GoodResponsesLLM.Inc()
+		return nil
+	}
+
+	if message.Text == "-" {
+		t.metrics.BadResponsesLLM.Inc()
+		return nil
+	}
+
+	return fmt.Errorf("неверный формат")
 }

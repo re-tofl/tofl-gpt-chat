@@ -3,36 +3,51 @@ package telegram
 import (
 	"context"
 	"fmt"
+	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
-	"github.com/re-tofl/tofl-gpt-chat/internal/delivery/Yandex"
-	"go.uber.org/zap"
-
 	"github.com/re-tofl/tofl-gpt-chat/internal/bootstrap"
-	task2 "github.com/re-tofl/tofl-gpt-chat/internal/delivery/openai"
-	"github.com/re-tofl/tofl-gpt-chat/internal/delivery/task"
+	"go.uber.org/zap"
 )
 
-type Handler struct {
-	cfg           *bootstrap.Config
-	log           *zap.SugaredLogger
-	bot           *tgbotapi.BotAPI
-	taskHandler   *task.THandler
-	openHandler   *task2.OpenHandler
-	speechHandler *Yandex.SpeechHandler
+type OpenAiUsecase interface {
+	SaveMedia(ctx context.Context, message *tgbotapi.Message, bot *tgbotapi.BotAPI) string
+	SendToGpt(ctx context.Context, message *tgbotapi.Message) string
 }
 
-func NewHandler(cfg *bootstrap.Config, log *zap.SugaredLogger, t *task.THandler, o *task2.OpenHandler, s *Yandex.SpeechHandler) *Handler {
+type SpeechUsecase interface {
+	ConvertSpeechToText(ctx context.Context, filePath string) string
+}
+
+type TaskUsecase interface {
+	RateTheory(ctx context.Context, message *tgbotapi.Message) error
+}
+
+type Handler struct {
+	cfg        *bootstrap.Config
+	log        *zap.SugaredLogger
+	bot        *tgbotapi.BotAPI
+	openAiUC   OpenAiUsecase
+	speechUC   SpeechUsecase
+	taskUC     TaskUsecase
+	mu         sync.Mutex
+	userStates map[int64]int
+}
+
+func NewHandler(cfg *bootstrap.Config, log *zap.SugaredLogger,
+	o OpenAiUsecase, s SpeechUsecase, t TaskUsecase) *Handler {
 	return &Handler{
-		cfg:           cfg,
-		log:           log,
-		taskHandler:   t,
-		openHandler:   o,
-		speechHandler: s,
+		cfg:        cfg,
+		log:        log,
+		openAiUC:   o,
+		speechUC:   s,
+		taskUC:     t,
+		userStates: make(map[int64]int),
 	}
 }
 
@@ -61,6 +76,7 @@ func (h *Handler) Listen(ctx context.Context) error {
 			bot.StopReceivingUpdates()
 			return nil
 		case update := <-updates:
+			// TODO: сделать многопоточным
 			h.processUpdate(ctx, &update)
 		}
 	}
@@ -91,6 +107,11 @@ func (h *Handler) processUpdate(ctx context.Context, update *tgbotapi.Update) {
 		"username", update.Message.From.UserName,
 		"message", messageText)
 
+	if update.Message.IsCommand() {
+		h.processCommand(ctx, update.Message)
+		return
+	}
+
 	if update.Message.Photo != nil || update.Message.Document != nil {
 		h.log.Infow("received photo or file from ",
 			"username", update.Message.From.UserName)
@@ -103,24 +124,16 @@ func (h *Handler) processUpdate(ctx context.Context, update *tgbotapi.Update) {
 		h.handleVoice(ctx, update.Message, h.bot)
 	}
 
-	fmt.Println(update.Message)
-
-	if update.Message.IsCommand() {
-		h.processCommand(ctx, update.Message)
-	} else {
-		h.handleMessage(ctx, update.Message)
-	}
-
+	h.handleMessage(ctx, update.Message)
 }
 
 func (h *Handler) handleProblemWithImages(ctx context.Context, message *tgbotapi.Message) {
-	gptFileResponse := h.openHandler.SaveMediaAndSendToAi(ctx, message, h.bot)
+	gptFileResponse := h.openAiUC.SaveMedia(ctx, message, h.bot)
 	reply := tgbotapi.NewMessage(message.Chat.ID, gptFileResponse)
 	h.Send(reply)
 }
 
 func (h *Handler) handleVoice(ctx context.Context, message *tgbotapi.Message, bot *tgbotapi.BotAPI) {
-	fmt.Println("here")
 	fileId := message.Voice.FileID
 	file, err := bot.GetFile(tgbotapi.FileConfig{FileID: fileId})
 	if err != nil {
@@ -128,7 +141,7 @@ func (h *Handler) handleVoice(ctx context.Context, message *tgbotapi.Message, bo
 	}
 
 	filePath, err := h.SaveAndDownloadVoice(file.FilePath, file.FileID)
-	textFromSpeech := h.speechHandler.SpeechToText(ctx, filePath, h.bot)
+	textFromSpeech := h.speechUC.ConvertSpeechToText(ctx, filePath)
 
 	reply := tgbotapi.NewMessage(message.Chat.ID, textFromSpeech)
 	h.Send(reply)
@@ -158,7 +171,7 @@ func (h *Handler) SaveAndDownloadVoice(tgFilePath string, fileName string) (stri
 	return filePath, nil
 }
 func (h *Handler) handleGptTextMessage(ctx context.Context, message *tgbotapi.Message) {
-	gptResponse := h.openHandler.SendToGpt(ctx, message)
+	gptResponse := h.openAiUC.SendToGpt(ctx, message)
 	reply := tgbotapi.NewMessage(message.Chat.ID, gptResponse)
 	h.Send(reply)
 }
@@ -166,22 +179,56 @@ func (h *Handler) handleGptTextMessage(ctx context.Context, message *tgbotapi.Me
 func (h *Handler) handleMessage(ctx context.Context, message *tgbotapi.Message) {
 	reply := tgbotapi.NewMessage(message.Chat.ID, "")
 
-	if state, exists := userStates[message.Chat.ID]; exists {
-		switch state {
-		case "awaiting_gpt_question":
-			question := message.Text
-			reply.Text = fmt.Sprintf("Ты задал вопрос: %s. Отправляю в GPT...", question)
-			h.Send(reply)
-			h.handleGptTextMessage(ctx, message)
-
-			delete(userStates, message.Chat.ID)
-		default:
-			reply.Text = "Неизвестное состояние."
-		}
-		return
+	state, ok := h.userStates[message.Chat.ID]
+	if !ok {
+		h.mu.Lock()
+		h.userStates[message.Chat.ID] = domain.StartState
+		h.mu.Unlock()
 	}
 
-	h.processCommand(ctx, message)
+	switch state {
+	case domain.GPTInputState:
+		question := message.Text
+		reply.Text = fmt.Sprintf("Ты задал вопрос: %s. Отправляю в GPT...", question)
+		h.Send(reply)
+		h.handleGptTextMessage(ctx, message)
+
+	case domain.ProblemInputState:
+		err := h.Problem(ctx, message)
+		if err != nil {
+			h.log.Errorw("h.Problem", zap.Error(err))
+			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Произошла ошибка"))
+		}
+
+	case domain.TheoryInputState:
+		err := h.Theory(ctx, message)
+		if err != nil {
+			h.log.Errorw("h.Theory", zap.Error(err))
+			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Произошла ошибка"))
+		} else {
+			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Напишите +, если ответ правильный, и -, если неправильный"))
+
+			h.mu.Lock()
+			h.userStates[message.Chat.ID] = domain.TheoryRateState
+			h.mu.Unlock()
+
+			return
+		}
+
+	case domain.TheoryRateState:
+		err := h.RateTheory(ctx, message)
+		if err != nil {
+			h.log.Errorw("h.RateTheory", zap.Error(err))
+			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Произошла ошибка: "+err.Error()))
+		}
+
+	default:
+		h.Send(tgbotapi.NewMessage(message.Chat.ID, "Введите команду"))
+	}
+
+	h.mu.Lock()
+	h.userStates[message.Chat.ID] = domain.StartState
+	h.mu.Unlock()
 }
 
 func (h *Handler) processCommand(ctx context.Context, message *tgbotapi.Message) {
@@ -190,18 +237,31 @@ func (h *Handler) processCommand(ctx context.Context, message *tgbotapi.Message)
 	switch message.Command() {
 	case "gpt":
 		reply.Text = "Введи вопрос к gpt:"
-		userStates[message.Chat.ID] = "awaiting_gpt_question"
+
+		h.mu.Lock()
+		h.userStates[message.Chat.ID] = domain.GPTInputState
+		h.mu.Unlock()
+
 		h.Send(reply)
 	case "theory":
-		reply.Text = "Ответ на теорию"
+		reply.Text = "Введите вопрос по теории"
+
+		h.mu.Lock()
+		h.userStates[message.Chat.ID] = domain.TheoryInputState
+		h.mu.Unlock()
+
 		h.Send(reply)
 	case "problem":
-		reply.Text = "Ответ на задачу"
+		reply.Text = "Введите текст задачи"
+
+		h.mu.Lock()
+		h.userStates[message.Chat.ID] = domain.ProblemInputState
+		h.mu.Unlock()
+
 		h.Send(reply)
 	case "imageProblem":
 		reply.Text = "Ответ на задачу с фотографиями"
 		h.handleProblemWithImages(ctx, message)
-
 		h.Send(reply)
 	case "developers":
 		reply.Text = "тут будут контакты разработчиков"

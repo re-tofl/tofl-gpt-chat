@@ -13,13 +13,23 @@ type OpenAiStore interface {
 	SendAndGetAnswerFromGptNonFineTuned(message *tgbotapi.Message) string
 }
 
-func SaveMedia(ctx context.Context, os OpenAiStore, message *tgbotapi.Message, bot *tgbotapi.BotAPI) string {
-	files := os.SaveMedia(message, bot)
-	gptResponse := os.SendPDF(message, files)
+type OpenAiUseCase struct {
+	store OpenAiStore
+}
+
+func NewOpenAiUseCase(store OpenAiStore) *OpenAiUseCase {
+	return &OpenAiUseCase{
+		store: store,
+	}
+}
+
+func (u *OpenAiUseCase) SaveMedia(ctx context.Context, message *tgbotapi.Message, bot *tgbotapi.BotAPI) string {
+	files := u.store.SaveMedia(message, bot)
+	gptResponse := u.store.SendPDF(message, files)
 	return gptResponse
 }
 
-func SendToGpt(ctx context.Context, os OpenAiStore, message *tgbotapi.Message) string {
-	gptResponse := os.SendAndGetAnswerFromGptNonFineTuned(message)
+func (u *OpenAiUseCase) SendToGpt(ctx context.Context, message *tgbotapi.Message) string {
+	gptResponse := u.store.SendAndGetAnswerFromGptNonFineTuned(message)
 	return gptResponse
 }
