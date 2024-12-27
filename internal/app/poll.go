@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/re-tofl/tofl-gpt-chat/internal/delivery/Yandex"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/re-tofl/tofl-gpt-chat/internal/bootstrap"
@@ -13,7 +14,7 @@ import (
 	"github.com/re-tofl/tofl-gpt-chat/internal/delivery/task"
 	"github.com/re-tofl/tofl-gpt-chat/internal/delivery/telegram"
 	"github.com/re-tofl/tofl-gpt-chat/internal/depgraph"
-	userRep "github.com/re-tofl/tofl-gpt-chat/internal/repository"
+	repository "github.com/re-tofl/tofl-gpt-chat/internal/repository"
 	"github.com/re-tofl/tofl-gpt-chat/internal/usecase"
 )
 
@@ -40,15 +41,19 @@ func (e *PollEntrypoint) Init(ctx context.Context) error {
 		Addr:    "127.0.0.1:" + e.Config.ServerPort,
 	}
 
-	taskRepo := userRep.NewTaskStorage(nil, nil, logger, e.Config)
-	openAiRepo := userRep.NewOpenaiStorage(logger, e.Config)
+	taskRepo := repository.NewTaskStorage(nil, nil, logger, e.Config)
+	openAiRepo := repository.NewOpenaiStorage(logger, e.Config)
 
 	openHandler := task2.NewOpenHandler(e.Config, logger)
+
+	speechRepo := repository.NewSpeechStorage(logger, e.Config)
+	speechHandler := Yandex.NewSpeechHandler(e.Config, logger, speechRepo)
+
 	e.task = task.NewTaskHandler(e.Config, logger, taskRepo, openAiRepo)
 
-	usecase.NewUserHandler(logger, userRep.NewUserStorage(logger, nil))
+	usecase.NewUserHandler(logger, repository.NewUserStorage(logger, nil))
 
-	e.tgbot = telegram.NewHandler(e.Config, logger, e.task, openHandler)
+	e.tgbot = telegram.NewHandler(e.Config, logger, e.task, openHandler, speechHandler)
 
 	return nil
 }
