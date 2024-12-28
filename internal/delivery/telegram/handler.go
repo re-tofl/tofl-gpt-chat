@@ -3,11 +3,13 @@ package telegram
 import (
 	"context"
 	"fmt"
+	"github.com/pkg/errors"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/re-tofl/tofl-gpt-chat/internal/adapters"
@@ -31,7 +33,9 @@ type SpeechUsecase interface {
 }
 
 type TaskUsecase interface {
-	RateTheory(ctx context.Context, message *tgbotapi.Message, contextID int) error
+	SolveProblem(ctx context.Context, message domain.Message) (domain.UnionProblemResponse, error)
+	AnswerTheory(ctx context.Context, message domain.Message) (domain.LLMTheoryResponse, error)
+	RateTheory(ctx context.Context, message domain.Message) error
 }
 
 type SearchUsecase interface {
@@ -50,7 +54,6 @@ type Handler struct {
 	userContextIDs map[int64]int
 	mongo          *adapters.AdapterMongo
 	achs           map[int64]domain.Achievement
-	postgres       *adapters.AdapterPG
 	searchUC       SearchUsecase
 }
 
@@ -96,22 +99,19 @@ func (h *Handler) Listen(ctx context.Context) error {
 			return nil
 		case update := <-updates:
 			// TODO: сделать многопоточным
-			h.processUpdate(ctx, &update)
+			h.processUpdate(ctx, update)
 		}
 	}
 }
 
-func (h *Handler) Send(c tgbotapi.Chattable) *tgbotapi.Message {
-	send, err := h.bot.Send(c)
+func (h *Handler) Send(c tgbotapi.Chattable) {
+	_, err := h.bot.Send(c)
 	if err != nil {
 		h.log.Errorw("bot.Send", zap.Error(err))
-		return nil
 	}
-
-	return &send
 }
 
-func (h *Handler) processUpdate(ctx context.Context, update *tgbotapi.Update) {
+func (h *Handler) processUpdate(ctx context.Context, update tgbotapi.Update) {
 	if update.Message == nil {
 		return
 	}
@@ -231,6 +231,12 @@ func (h *Handler) handleMessage(ctx context.Context, message *tgbotapi.Message) 
 		h.mu.Unlock()
 	}
 
+	domMsg := domain.Message{
+		ChatID:   message.Chat.ID,
+		UserName: message.From.UserName,
+		Text:     message.Text,
+	}
+
 	switch state {
 	case domain.GPTInputState:
 		question := message.Text
@@ -239,34 +245,62 @@ func (h *Handler) handleMessage(ctx context.Context, message *tgbotapi.Message) 
 		h.handleGptTextMessage(ctx, message)
 
 	case domain.ProblemInputState:
-		err := h.Problem(ctx, message)
-		if err != nil {
-			h.log.Errorw("h.Problem", zap.Error(err))
-			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Произошла ошибка"))
+		resp, err := h.taskUC.SolveProblem(ctx, domMsg)
+
+		if errors.Is(err, domain.ErrBadRequest) {
+			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Парсер обнаружил ошибки!"))
+			if resp.Error.ErrorTrs != nil {
+				h.Send(tgbotapi.NewMessage(message.Chat.ID, "Ошибки TRS:"))
+				for _, err := range resp.Error.ErrorTrs {
+					h.Send(tgbotapi.NewMessage(message.Chat.ID, err))
+				}
+			}
+			if resp.Error.ErrorInterpretation != nil {
+				h.Send(tgbotapi.NewMessage(message.Chat.ID, "Ошибки интерпретации:"))
+				for _, err := range resp.Error.ErrorInterpretation {
+					h.Send(tgbotapi.NewMessage(message.Chat.ID, err))
+				}
+			}
+			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Введите текст задачи ещё раз"))
+		} else if err != nil {
+			h.log.Errorw("h.taskUC.SolveProblem", zap.Error(err))
+			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Произошла ошибка на сервере"))
+		} else {
+			var msg strings.Builder
+			for _, line := range resp.Success.Result {
+				msg.WriteString(line.Data + "\n")
+			}
+			h.Send(tgbotapi.NewMessage(message.Chat.ID, msg.String()))
+
+			h.mu.Lock()
+			h.userStates[message.Chat.ID] = domain.StartState
+			h.mu.Unlock()
 		}
 
 	case domain.TheoryInputState:
-		err := h.Theory(ctx, message)
+		resp, err := h.taskUC.AnswerTheory(ctx, domMsg)
 		if err != nil {
 			h.log.Errorw("h.Theory", zap.Error(err))
-			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Произошла ошибка"))
+			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Произошла ошибка на сервере"))
 		} else {
+			h.Send(tgbotapi.NewMessage(message.Chat.ID, resp.Response))
 			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Оцените ответ от 1 до 10"))
 
 			h.mu.Lock()
 			h.userStates[message.Chat.ID] = domain.TheoryRateState
 			h.mu.Unlock()
-
-			return
 		}
 
 	case domain.TheoryRateState:
-		err := h.RateTheory(ctx, message)
+		err := h.taskUC.RateTheory(ctx, domMsg)
 		if err != nil {
 			h.log.Errorw("h.RateTheory", zap.Error(err))
 			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Произошла ошибка: "+err.Error()))
 		} else {
 			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Спасибо за оценку!"))
+			h.mu.Lock()
+			h.userStates[message.Chat.ID] = domain.StartState
+			h.mu.Unlock()
 		}
 
 	default:
