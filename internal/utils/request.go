@@ -3,6 +3,7 @@ package utils
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 )
@@ -22,4 +23,12 @@ func SendRequest(ctx context.Context, url string, method string, body []byte) (*
 	}
 
 	return resp, nil
+}
+
+func SendRequestSugared(ctx context.Context, url string, method string, v interface{}) (*http.Response, error) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return nil, fmt.Errorf("json.Marshal: %w", err)
+	}
+	return SendRequest(ctx, url, method, b)
 }
