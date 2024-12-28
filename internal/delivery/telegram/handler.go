@@ -262,6 +262,7 @@ func (h *Handler) handleMessage(ctx context.Context, message *tgbotapi.Message) 
 				}
 			}
 			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Введите текст задачи ещё раз"))
+			return
 		} else if err != nil {
 			h.log.Errorw("h.taskUC.SolveProblem", zap.Error(err))
 			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Произошла ошибка на сервере"))
@@ -271,10 +272,6 @@ func (h *Handler) handleMessage(ctx context.Context, message *tgbotapi.Message) 
 				msg.WriteString(line.Data + "\n")
 			}
 			h.Send(tgbotapi.NewMessage(message.Chat.ID, msg.String()))
-
-			h.mu.Lock()
-			h.userStates[message.Chat.ID] = domain.StartState
-			h.mu.Unlock()
 		}
 
 	case domain.TheoryInputState:
@@ -289,6 +286,8 @@ func (h *Handler) handleMessage(ctx context.Context, message *tgbotapi.Message) 
 			h.mu.Lock()
 			h.userStates[message.Chat.ID] = domain.TheoryRateState
 			h.mu.Unlock()
+
+			return
 		}
 
 	case domain.TheoryRateState:
@@ -298,9 +297,6 @@ func (h *Handler) handleMessage(ctx context.Context, message *tgbotapi.Message) 
 			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Произошла ошибка: "+err.Error()))
 		} else {
 			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Спасибо за оценку!"))
-			h.mu.Lock()
-			h.userStates[message.Chat.ID] = domain.StartState
-			h.mu.Unlock()
 		}
 
 	default:
