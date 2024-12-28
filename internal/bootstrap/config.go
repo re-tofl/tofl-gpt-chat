@@ -6,7 +6,6 @@ import (
 
 type Config struct {
 	ServerPort              string `mapstructure:"SERVER_PORT"`
-	DatabaseURL             string `mapstructure:"DATABASE_URL"`
 	TGBotToken              string `mapstructure:"TG_BOT_TOKEN"`
 	LLMURL                  string `mapstructure:"LLM_URL"`
 	ParserURL               string `mapstructure:"PARSER_URL"`

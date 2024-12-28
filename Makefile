@@ -1,9 +1,6 @@
 NAME := tgbot
 MAIN := cmd/tgbot/main.go
 
-NAME_MIGRATE := migrate
-MAIN_MIGRATE := cmd/migrate/main.go
-
 PKG := `go list -mod=mod -f {{.Dir}} ./...`
 
 RUNFLAGS := --config .env
@@ -15,24 +12,10 @@ run: build
 	@echo "Starting app..."
 	./bin/$(NAME) $(RUNFLAGS) poll
 
-create-migration: build-migrate
-	./bin/${NAME_MIGRATE} $(RUNFLAGS) create $(name)
-
-migrate: build-migrate
-	./bin/${NAME_MIGRATE} $(RUNFLAGS) up
-
-downgrade: build-migrate
-	./bin/${NAME_MIGRATE} $(RUNFLAGS) down
-
 .PHONY: build
 build:
 	@mkdir -p bin
 	@go build -mod=mod -o bin/$(NAME) $(MAIN)
-
-.PHONY: build-migrate
-build-migrate:
-	@mkdir -p bin
-	@go build -mod=mod -o bin/$(NAME_MIGRATE) $(MAIN_MIGRATE)
 
 mod-tidy:
 	go mod tidy

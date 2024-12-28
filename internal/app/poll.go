@@ -51,13 +51,15 @@ func (e *PollEntrypoint) Init(ctx context.Context) error {
 
 	e.fw = fw
 	ratingRepo := repository.NewRatingRepository(fw)
+	llmRepo := repository.NewLLMRepository(e.Config)
+	parserRepo := repository.NewParserRepository(e.Config)
+	formalRepo := repository.NewFormalRepository(e.Config)
 
 	speechUC := usecase.NewSpeechUsecase(speechRepo)
 	openAiUC := usecase.NewOpenAiUseCase(openAiRepo)
-	taskUC := usecase.NewTaskUsecase(ratingRepo)
+	taskUC := usecase.NewTaskUsecase(logger, llmRepo, parserRepo, formalRepo, ratingRepo)
 
 	mongoAdapter := adapters.NewAdapterMongo(e.Config)
-	//postgresAdapter := adapters.NewAdapterPG(e.Config)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -65,10 +67,6 @@ func (e *PollEntrypoint) Init(ctx context.Context) error {
 	if err = mongoAdapter.Init(ctx); err != nil {
 		log.Fatalf("Не удалось инициализировать MongoAdapter: %v", err)
 	}
-
-	//if err = postgresAdapter.Init(ctx); err != nil {
-	//	log.Fatalf("Не удалось инициализировать PostgresAdapter: %v", err)
-	//}
 
 	searchRepo := repository.NewSearchStorage(logger)
 	searchUC := usecase.NewSearchUseCase(searchRepo)

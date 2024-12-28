@@ -5,7 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -50,15 +50,7 @@ func NewTaskStorage(p *sql.DB, m *mongo.Database, logger *zap.SugaredLogger, cfg
 	}
 }
 
-func (ts *TaskStorage) Solve(message *domain.Message) {
-
-}
-
-func (ts *TaskStorage) Answer(message *domain.Message) {
-
-}
-
-func (ts *TaskStorage) Translate(message *domain.Message) *domain.Message {
+func (ts *TaskStorage) Translate(message *domain.SearchMessage) *domain.SearchMessage {
 	translateRequest := TranslateRequest{
 		Messages:           make([]string, 0),
 		FolderID:           ts.cfg.YandexTranslateFolderId,
@@ -88,7 +80,7 @@ func (ts *TaskStorage) SendToYandex(request TranslateRequest) (response Translat
 		ts.logger.Error(err)
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		ts.logger.Error(err)
 	}
@@ -148,7 +140,7 @@ func (ts *TaskStorage) CreateSearchIndex() {
 	}
 }
 
-func (ts *TaskStorage) Search(userMessage *domain.Message) *domain.Message {
+func (ts *TaskStorage) Search(userMessage *domain.SearchMessage) *domain.SearchMessage {
 	mongoSearchResults := ts.FindRelevantContext(userMessage.TranslatedMessageText)
 	if mongoSearchResults != nil {
 		userMessage.Context = mongoSearchResults

@@ -7,6 +7,12 @@ import (
 )
 
 type Message struct {
+	ChatID   int64
+	UserName string
+	Text     string
+}
+
+type SearchMessage struct {
 	SenderChatID          int64
 	OriginalMessageText   string   `json:"originalText"`
 	TranslatedMessageText string   `json:"translatedText"`
