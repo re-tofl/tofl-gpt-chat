@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -33,8 +34,10 @@ type SpeechUsecase interface {
 }
 
 type TaskUsecase interface {
+	GetClosestQuestions(ctx context.Context, message domain.Message) (domain.LLMClosestQuestionsResponse, error)
 	SolveProblem(ctx context.Context, message domain.Message) (domain.UnionProblemResponse, error)
 	AnswerTheory(ctx context.Context, message domain.Message) (domain.LLMTheoryResponse, error)
+	SetContextID(chatID int64, contextID int)
 	RateTheory(ctx context.Context, message domain.Message) error
 }
 
@@ -52,6 +55,7 @@ type Handler struct {
 	mu             sync.Mutex
 	userStates     map[int64]int
 	userContextIDs map[int64]int
+	userPrompts    map[int64]string
 	mongo          *adapters.AdapterMongo
 	achs           map[int64]domain.Achievement
 	searchUC       SearchUsecase
@@ -67,6 +71,7 @@ func NewHandler(cfg *bootstrap.Config, log *zap.SugaredLogger,
 		taskUC:         t,
 		userStates:     make(map[int64]int),
 		userContextIDs: make(map[int64]int),
+		userPrompts:    make(map[int64]string),
 		mongo:          m,
 		achs:           CreateAchMap(),
 		searchUC:       search,
@@ -275,13 +280,51 @@ func (h *Handler) handleMessage(ctx context.Context, message *tgbotapi.Message) 
 		}
 
 	case domain.TheoryInputState:
+		resp, err := h.taskUC.GetClosestQuestions(ctx, domMsg)
+		if err != nil {
+			h.log.Errorw("h.taskUC.GetClosestQuestions", zap.Error(err))
+			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Произошла ошибка на сервере"))
+		}
+
+		for _, q := range resp.ClosestQuestions {
+			h.Send(tgbotapi.NewMessage(message.Chat.ID, strconv.Itoa(q.ID)+". "+q.Question))
+		}
+
+		h.mu.Lock()
+		h.userStates[message.Chat.ID] = domain.TheoryClosestQuestionsState
+		h.userPrompts[message.Chat.ID] = message.Text
+		h.mu.Unlock()
+		return
+
+	case domain.TheoryClosestQuestionsState:
+		if message.Text != "стоп" {
+			ratingValue, err := strconv.ParseInt(message.Text, 10, 64)
+			if err != nil {
+				h.Send(tgbotapi.NewMessage(message.Chat.ID, "Введите ID вопроса"))
+				return
+			}
+
+			h.taskUC.SetContextID(message.Chat.ID, int(ratingValue))
+			h.log.Infow("contextid set", "chatid", message.Chat.ID, "contextid", ratingValue)
+
+			return
+		}
+
+		h.mu.Lock()
+		domMsg := domain.Message{
+			ChatID:   message.Chat.ID,
+			UserName: message.From.UserName,
+			Text:     h.userPrompts[message.Chat.ID],
+		}
+		h.mu.Unlock()
+
 		resp, err := h.taskUC.AnswerTheory(ctx, domMsg)
 		if err != nil {
 			h.log.Errorw("h.Theory", zap.Error(err))
 			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Произошла ошибка на сервере"))
 		} else {
 			h.Send(tgbotapi.NewMessage(message.Chat.ID, resp.Response))
-			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Оцените ответ от 1 до 10"))
+			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Оцените ответ"))
 
 			h.mu.Lock()
 			h.userStates[message.Chat.ID] = domain.TheoryRateState

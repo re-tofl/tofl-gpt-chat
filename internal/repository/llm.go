@@ -20,6 +20,25 @@ func NewLLMRepository(cfg *bootstrap.Config) *LLMRepository {
 	}
 }
 
+func (r *LLMRepository) GetClosestQuestions(ctx context.Context, req domain.LLMRequest) (domain.LLMClosestQuestionsResponse, error) {
+	resp, err := utils.SendRequestSugared(ctx, r.cfg.LLMURL+"/theory-closest-questions", "POST", req)
+	if err != nil {
+		return domain.LLMClosestQuestionsResponse{}, fmt.Errorf("utils.SendRequestSugared: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return domain.LLMClosestQuestionsResponse{}, fmt.Errorf("resp.StatusCode from LLM: %v", resp.StatusCode)
+	}
+
+	var data domain.LLMClosestQuestionsResponse
+	err = utils.DecodeBody(resp, &data)
+	if err != nil {
+		return domain.LLMClosestQuestionsResponse{}, fmt.Errorf("utils.DecodeBody: %w", err)
+	}
+
+	return data, nil
+}
+
 func (r *LLMRepository) SendTheory(ctx context.Context, req domain.LLMRequest) (domain.LLMTheoryResponse, error) {
 	resp, err := utils.SendRequestSugared(ctx, r.cfg.LLMURL+"/process", "POST", req)
 	if err != nil {

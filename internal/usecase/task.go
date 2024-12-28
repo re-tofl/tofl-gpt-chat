@@ -15,6 +15,7 @@ type RatingRepository interface {
 }
 
 type LLMRepository interface {
+	GetClosestQuestions(ctx context.Context, req domain.LLMRequest) (domain.LLMClosestQuestionsResponse, error)
 	SendProblem(ctx context.Context, req domain.LLMRequest) (domain.LLMProblemResponse, error)
 	SendTheory(ctx context.Context, req domain.LLMRequest) (domain.LLMTheoryResponse, error)
 }
@@ -35,7 +36,7 @@ type TaskUsecase struct {
 	formal         FormalRepository
 	ratingRepo     RatingRepository
 	mu             sync.Mutex
-	userContextIDs map[int64]int
+	userContextIDs map[int64][]int
 }
 
 func NewTaskUsecase(log *zap.SugaredLogger, llm LLMRepository, parser ParserRepository,
@@ -47,7 +48,7 @@ func NewTaskUsecase(log *zap.SugaredLogger, llm LLMRepository, parser ParserRepo
 		parser:         parser,
 		formal:         formal,
 		ratingRepo:     ratingRepo,
-		userContextIDs: make(map[int64]int),
+		userContextIDs: make(map[int64][]int),
 	}
 }
 
@@ -77,23 +78,46 @@ func (t *TaskUsecase) SolveProblem(ctx context.Context, message domain.Message) 
 	return domain.UnionProblemResponse{Success: resp}, nil
 }
 
+func (t *TaskUsecase) GetClosestQuestions(ctx context.Context, message domain.Message) (domain.LLMClosestQuestionsResponse, error) {
+	data, err := t.llm.GetClosestQuestions(ctx, domain.LLMRequest{Type: 0, Prompt: message.Text})
+	if err != nil {
+		return domain.LLMClosestQuestionsResponse{}, err
+	}
+
+	return data, nil
+}
+
 func (t *TaskUsecase) AnswerTheory(ctx context.Context, message domain.Message) (domain.LLMTheoryResponse, error) {
 	//h.handleGptTextMessage(ctx, message)
-	res, err := t.llm.SendTheory(ctx, domain.LLMRequest{Type: 0, Prompt: message.Text})
+
+	t.mu.Lock()
+	usedContextIDs := t.userContextIDs[message.ChatID]
+	t.mu.Unlock()
+
+	res, err := t.llm.SendTheory(ctx, domain.LLMRequest{Type: 0, Prompt: message.Text, ContextIDs: usedContextIDs})
 	if err != nil {
 		return domain.LLMTheoryResponse{}, err
 	}
 
-	t.mu.Lock()
-	t.userContextIDs[message.ChatID] = res.ContextID
-	t.mu.Unlock()
-
 	return res, nil
+}
+
+func (t *TaskUsecase) SetContextID(chatID int64, contextID int) {
+	vals := make([]int, 0)
+	vals = append(vals, contextID)
+	t.mu.Lock()
+	_, ok := t.userContextIDs[chatID]
+	if !ok {
+		t.userContextIDs[chatID] = vals
+	} else {
+		t.userContextIDs[chatID] = append(t.userContextIDs[chatID], contextID)
+	}
+	t.mu.Unlock()
 }
 
 func (t *TaskUsecase) RateTheory(ctx context.Context, message domain.Message) error {
 	t.mu.Lock()
-	contextID := t.userContextIDs[message.ChatID]
+	contextIDs := t.userContextIDs[message.ChatID]
 	t.mu.Unlock()
 
 	ratingValue, err := strconv.ParseFloat(message.Text, 64)
@@ -103,8 +127,8 @@ func (t *TaskUsecase) RateTheory(ctx context.Context, message domain.Message) er
 
 	t.metrics.ResponseRating.WithLabelValues(message.UserName).Observe(ratingValue)
 	return t.ratingRepo.SaveRating(ctx, domain.Rating{
-		ChatID:    message.ChatID,
-		ContextID: contextID,
-		Rating:    int(ratingValue),
+		ChatID:         message.ChatID,
+		UsedContextIDs: contextIDs,
+		Rating:         int(ratingValue),
 	})
 }

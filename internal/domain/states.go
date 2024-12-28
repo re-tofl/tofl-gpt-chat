@@ -9,6 +9,7 @@ const (
 	ProblemFormalState
 	ProblemRateState
 	TheoryInputState
+	TheoryClosestQuestionsState
 	TheoryRateState
 	GPTInputState
 )
