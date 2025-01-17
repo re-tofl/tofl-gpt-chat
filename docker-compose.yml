@@ -1,4 +1,11 @@
 services:
+  tgbot:
+    build: .
+    container_name: tgbot_tofl
+    restart: unless-stopped
+    network_mode: host
+    env_file:
+      - .env
   mongodb:
     image: mongo:6.0
     container_name: mongodb_tofl

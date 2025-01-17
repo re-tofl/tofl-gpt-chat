@@ -1,0 +1,15 @@
+README.md
+rating.json
+upload/*
+
+### Config
+.env.example
+
+### Git
+.gitignore
+.github/
+
+### Docker
+.dockerignore
+docker-compose.yml
+Dockerfile

@@ -44,13 +44,7 @@ func (e *PollEntrypoint) Init(ctx context.Context) error {
 	openAiRepo := repository.NewOpenaiStorage(logger, e.Config)
 	speechRepo := repository.NewSpeechStorage(logger, e.Config)
 
-	fw, err := dg.GetFileWriter("rating.json")
-	if err != nil {
-		return fmt.Errorf("dg.GetFileWriter: %w", err)
-	}
-
-	e.fw = fw
-	ratingRepo := repository.NewRatingRepository(fw)
+	ratingRepo := repository.NewRatingRepository()
 	llmRepo := repository.NewLLMRepository(e.Config)
 	parserRepo := repository.NewParserRepository(e.Config)
 	formalRepo := repository.NewFormalRepository(e.Config)

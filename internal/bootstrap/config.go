@@ -1,7 +1,9 @@
 package bootstrap
 
 import (
+	"fmt"
 	"github.com/spf13/viper"
+	"os"
 )
 
 type Config struct {
@@ -17,18 +19,43 @@ type Config struct {
 
 func Setup(cfgPath string) (*Config, error) {
 	viper.SetConfigFile(cfgPath)
+	viper.AutomaticEnv()
 
 	err := viper.ReadInConfig()
-	if err != nil {
+	if os.IsNotExist(err) {
+		fmt.Print("config file not found, skipping")
+	} else if err != nil {
 		return nil, err
 	}
 
-	var cfg Config
+	return UnmarshalConfig(), nil
+}
 
-	err = viper.Unmarshal(&cfg)
-	if err != nil {
-		return nil, err
+func UnmarshalConfig() *Config {
+	return &Config{
+		ServerPort:              GetStringOr("SERVER_PORT", "8080"),
+		TGBotToken:              viper.GetString("TG_BOT_TOKEN"),
+		LLMURL:                  viper.GetString("LLM_URL"),
+		ParserURL:               viper.GetString("PARSER_URL"),
+		FormalURL:               viper.GetString("FORMAL_URL"),
+		YandexKey:               viper.GetString("YANDEX_KEY"),
+		YandexTranslateUrl:      viper.GetString("YANDEX_TRANSLATE_URL"),
+		YandexTranslateFolderId: viper.GetString("YANDEX_TRANSLATE_FOLDER_ID"),
+	}
+}
+
+func GetStringOr(key string, defaultValue string) string {
+	if viper.IsSet(key) {
+		return viper.GetString(key)
 	}
 
-	return &cfg, nil
+	return defaultValue
+}
+
+func GetIntOr(key string, defaultValue int) int {
+	if viper.IsSet(key) {
+		return viper.GetInt(key)
+	}
+
+	return defaultValue
 }
