@@ -315,7 +315,7 @@ func (h *Handler) handleMessage(ctx context.Context, message *tgbotapi.Message) 
 		h.mu.Unlock()
 
 		if len(resp.ClosestQuestions) == 0 {
-			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Похожих вопросов не нашлось, отправляем запрос..."))
+			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Похожих вопросов не нашлось!"))
 			message.Text = "стоп"
 		} else {
 			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Введите ID вопроса"))
