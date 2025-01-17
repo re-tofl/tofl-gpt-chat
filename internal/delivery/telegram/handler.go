@@ -219,11 +219,11 @@ func (h *Handler) handleGptTextMessage(ctx context.Context, message *tgbotapi.Me
 
 	gptResponse := h.openAiUC.SendToGpt(ctx, message)
 	message.Text = "Перепиши этот вопрос по английски, больше ничего не пиши. Это вопрос по теории формальных языков, учитывай это при переводе. Переведи вдумчиво!" + message.Text
-	translatedPrompt := h.openAiUC.SendToGpt(ctx, message)
+	//translatedPrompt := h.openAiUC.SendToGpt(ctx, message)
 	reply := tgbotapi.NewMessage(message.Chat.ID, gptResponse)
 	h.Send(reply)
-	reply = tgbotapi.NewMessage(message.Chat.ID, translatedPrompt)
-	h.Send(reply)
+	//reply = tgbotapi.NewMessage(message.Chat.ID, translatedPrompt)
+	//h.Send(reply)
 }
 
 func (h *Handler) handleMessage(ctx context.Context, message *tgbotapi.Message) {
