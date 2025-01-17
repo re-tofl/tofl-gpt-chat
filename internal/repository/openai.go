@@ -236,6 +236,13 @@ func (open *OpenaiStorage) downloadAndSaveFile(file tgbotapi.File, fileName stri
 	defer resp.Body.Close()
 
 	filePath := filepath.Join("upload", fileName)
+	dir := filepath.Dir(filePath)
+
+	err = os.MkdirAll(dir, os.ModePerm)
+	if err != nil {
+		return "", fmt.Errorf("ошибка при создании директории: %w", err)
+	}
+
 	outFile, err := os.Create(filePath)
 	if err != nil {
 		return "", fmt.Errorf("ошибка при создании файла: %w", err)
