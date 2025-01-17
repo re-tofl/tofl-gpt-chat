@@ -313,18 +313,23 @@ func (h *Handler) handleMessage(ctx context.Context, message *tgbotapi.Message) 
 		h.userStates[message.Chat.ID] = domain.TheoryClosestQuestionsState
 		h.userPrompts[message.Chat.ID] = message.Text
 		h.mu.Unlock()
+
+		h.Send(tgbotapi.NewMessage(message.Chat.ID, "Введите ID вопроса"))
+
 		return
 
 	case domain.TheoryClosestQuestionsState:
-		if message.Text != "стоп" {
-			ratingValue, err := strconv.ParseInt(message.Text, 10, 64)
+		if strings.ToLower(message.Text) != "стоп" {
+			contextID, err := strconv.ParseInt(message.Text, 10, 64)
 			if err != nil {
-				h.Send(tgbotapi.NewMessage(message.Chat.ID, "Введите ID вопроса"))
+				h.Send(tgbotapi.NewMessage(message.Chat.ID, "Введите еще один ID вопроса или \"стоп\""))
 				return
 			}
 
-			h.taskUC.SetContextID(message.Chat.ID, int(ratingValue))
-			h.log.Infow("contextid set", "chatid", message.Chat.ID, "contextid", ratingValue)
+			h.taskUC.SetContextID(message.Chat.ID, int(contextID))
+			h.log.Infow("contextid set", "chatid", message.Chat.ID, "contextid", contextID)
+
+			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Введите еще один ID вопроса или \"стоп\""))
 
 			return
 		}
