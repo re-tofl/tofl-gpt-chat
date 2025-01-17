@@ -387,6 +387,10 @@ func (h *Handler) processCommand(ctx context.Context, message *tgbotapi.Message)
 	reply := tgbotapi.NewMessage(message.Chat.ID, "")
 
 	switch message.Command() {
+	case "start":
+		reply.Text = "Приветствуем в TOFL GPT! Введи одну из команд из меню"
+		h.Send(reply)
+
 	case "gpt":
 		reply.Text = "Введи вопрос к gpt:"
 
