@@ -153,7 +153,8 @@ func (h *Handler) processUpdate(ctx context.Context, update tgbotapi.Update) {
 	}
 
 	if update.Message.Voice != nil {
-		h.handleVoice(ctx, update.Message, h.bot)
+		//h.handleVoice(ctx, update.Message, h.bot)
+		h.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Voice is disabled temporarily"))
 	}
 
 	h.handleMessage(ctx, update.Message)
