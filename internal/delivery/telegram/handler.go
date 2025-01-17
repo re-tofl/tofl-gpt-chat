@@ -314,9 +314,15 @@ func (h *Handler) handleMessage(ctx context.Context, message *tgbotapi.Message) 
 		h.userPrompts[message.Chat.ID] = message.Text
 		h.mu.Unlock()
 
-		h.Send(tgbotapi.NewMessage(message.Chat.ID, "Введите ID вопроса"))
+		if len(resp.ClosestQuestions) == 0 {
+			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Похожих вопросов не нашлось, отправляем запрос..."))
+			message.Text = "стоп"
+		} else {
+			h.Send(tgbotapi.NewMessage(message.Chat.ID, "Введите ID вопроса"))
+			return
+		}
 
-		return
+		fallthrough
 
 	case domain.TheoryClosestQuestionsState:
 		if strings.ToLower(message.Text) != "стоп" {
@@ -333,6 +339,8 @@ func (h *Handler) handleMessage(ctx context.Context, message *tgbotapi.Message) 
 
 			return
 		}
+
+		h.Send(tgbotapi.NewMessage(message.Chat.ID, "Отправляем запрос..."))
 
 		h.mu.Lock()
 		domMsg := domain.Message{
