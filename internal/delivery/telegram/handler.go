@@ -173,6 +173,9 @@ func (h *Handler) handleVoice(ctx context.Context, message *tgbotapi.Message, bo
 	}
 
 	filePath, err := h.SaveAndDownloadVoice(file.FilePath, file.FileID)
+	if err != nil {
+		h.log.Error(err)
+	}
 	textFromSpeech := h.speechUC.ConvertSpeechToText(ctx, filePath)
 
 	message.Text = textFromSpeech
