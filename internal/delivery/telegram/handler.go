@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/singleflight"
 	"io"
 	"log"
 	"net/http"
@@ -97,14 +98,21 @@ func (h *Handler) Listen(ctx context.Context) error {
 		return fmt.Errorf("bot.GetUpdatesChan: %w", err)
 	}
 
+	var g singleflight.Group
+
 	for {
 		select {
 		case <-ctx.Done():
 			bot.StopReceivingUpdates()
 			return nil
 		case update := <-updates:
-			// TODO: сделать многопоточным
-			h.processUpdate(ctx, update)
+			id := strconv.FormatInt(update.Message.Chat.ID, 10)
+			go func() {
+				_, _, _ = g.Do(id, func() (interface{}, error) {
+					h.processUpdate(ctx, update)
+					return nil, nil
+				})
+			}()
 		}
 	}
 }

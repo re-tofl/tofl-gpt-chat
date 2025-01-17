@@ -8,9 +8,12 @@ import (
 	"github.com/re-tofl/tofl-gpt-chat/internal/domain"
 	"github.com/re-tofl/tofl-gpt-chat/internal/utils"
 	"net/http"
+	"sync"
 )
 
 type LLMRepository struct {
+	sync.Once
+	mu  sync.Mutex
 	cfg *bootstrap.Config
 }
 
@@ -20,8 +23,15 @@ func NewLLMRepository(cfg *bootstrap.Config) *LLMRepository {
 	}
 }
 
+func (r *LLMRepository) sendRequest(ctx context.Context, url string, method string, req domain.LLMRequest) (*http.Response, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	resp, err := utils.SendRequestSugared(ctx, url, method, req)
+	return resp, err
+}
+
 func (r *LLMRepository) GetClosestQuestions(ctx context.Context, req domain.LLMRequest) (domain.LLMClosestQuestionsResponse, error) {
-	resp, err := utils.SendRequestSugared(ctx, r.cfg.LLMURL+"/theory-closest-questions", "POST", req)
+	resp, err := r.sendRequest(ctx, r.cfg.LLMURL+"/theory-closest-questions", "POST", req)
 	if err != nil {
 		return domain.LLMClosestQuestionsResponse{}, fmt.Errorf("utils.SendRequestSugared: %w", err)
 	}
@@ -40,7 +50,7 @@ func (r *LLMRepository) GetClosestQuestions(ctx context.Context, req domain.LLMR
 }
 
 func (r *LLMRepository) SendTheory(ctx context.Context, req domain.LLMRequest) (domain.LLMTheoryResponse, error) {
-	resp, err := utils.SendRequestSugared(ctx, r.cfg.LLMURL+"/process", "POST", req)
+	resp, err := r.sendRequest(ctx, r.cfg.LLMURL+"/process", "POST", req)
 	if err != nil {
 		return domain.LLMTheoryResponse{}, fmt.Errorf("utils.SendRequestSugared: %w", err)
 	}
@@ -59,7 +69,7 @@ func (r *LLMRepository) SendTheory(ctx context.Context, req domain.LLMRequest) (
 }
 
 func (r *LLMRepository) SendProblem(ctx context.Context, req domain.LLMRequest) (domain.LLMProblemResponse, error) {
-	resp, err := utils.SendRequestSugared(ctx, r.cfg.LLMURL+"/process", "POST", req)
+	resp, err := r.sendRequest(ctx, r.cfg.LLMURL+"/process", "POST", req)
 	if err != nil {
 		return domain.LLMProblemResponse{}, fmt.Errorf("utils.SendRequestSugared: %w", err)
 	}
